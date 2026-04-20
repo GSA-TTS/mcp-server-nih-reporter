@@ -18,7 +18,8 @@ def register_prompts(mcp):
                - May be slower for large result sets
 
             3. Use find_project_ids to get the list of project IDs for detailed queries
-               - Returns up to 500 project IDs matching the search criteria
+               - Returns one page of project IDs matching the search criteria
+               - Use offset and limit to page through result sets larger than 500
 
             4. Use get_project_information with only the IncludeFields needed to answer the query:
                - For funding questions: AWARD_AMOUNT, FISCAL_YEAR, DIRECT_COST_AMT, INDIRECT_COST_AMT

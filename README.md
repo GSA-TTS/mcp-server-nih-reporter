@@ -10,7 +10,7 @@ This project is a pilot study for the creation of an MCP server for the NIH's gr
 
 - **search_projects**: Performs an initial search and returns the count of matching projects along with distribution statistics (institutes, activity codes, organizations, funding). Samples the first 500 results for quick previews.
 - **get_search_summary**: Fetches ALL matching projects to provide complete, accurate statistics. Use this when you need exact totals (e.g., "total funding for cancer research"). Slower for large result sets.
-- **find_project_ids**: Returns up to 500 project IDs matching search criteria, plus overview statistics. Use this to identify specific grants for further detail retrieval.
+- **find_project_ids**: Returns a paginated page of project IDs matching search criteria, plus overview statistics for that page. Use `offset` and `limit` to retrieve all matching grants for further detail retrieval.
 - **get_project_information**: Retrieves detailed metadata for specific projects by their project number. Use this to get award amounts, principal investigators, abstracts, organizations, and other project details.
 
 Each tool is registered with the MCP server and can be called by an LLM or other MCP client. 

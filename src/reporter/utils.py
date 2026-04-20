@@ -199,7 +199,7 @@ def get_project_distributions(all_results):
         all_results (dict): API response containing grant data
     Returns:
         dict: Dictionary containing:
-            - project_ids: List of project ID dicts
+            - project_ids: List of project ID strings
             - year_distribution: Counter of fiscal years
             - institute_distribution: Counter of NIH institutes/centers
             - activity_code_distribution: Counter of activity codes
@@ -211,11 +211,11 @@ def get_project_distributions(all_results):
 
     results = all_results.get("results", [])
 
-    # Extract project IDs - handle case where individual results might be strings
+    # Extract project IDs
     project_ids = []
     for r in results:
         if isinstance(r, dict) and r.get("project_num"):
-            project_ids.append({"project_num": r.get("project_num")})
+            project_ids.append(r.get("project_num"))
 
     # Calculate distributions
     from collections import Counter
