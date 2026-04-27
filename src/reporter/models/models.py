@@ -189,6 +189,16 @@ class SearchParams(BaseModel):
         description="NIH spending category IDs with match behavior (e.g. {'values': [27, 31], 'match_all': false})"
     )
 
+    @field_validator("agencies", mode="before")
+    @classmethod
+    def coerce_agencies(cls, value):
+        """Allow callers to pass a single agency code instead of a list."""
+        if value is None:
+            return value
+        if isinstance(value, (str, NIHAgency)):
+            return [value]
+        return value
+
     def to_api_criteria(self):
         """Convert to API criteria format"""
         criteria = {}
