@@ -14,4 +14,4 @@
 #   DATABRICKS_CLIENT_ID     service principal client ID
 #   DATABRICKS_CLIENT_SECRET OAuth secret
 
-command: ["/bin/sh", "-c", "pip install -q . && uvicorn reporter.app:app --host 0.0.0.0 --port ${DATABRICKS_APP_PORT:-8000}"]
+command: ["/bin/sh", "-c", "PYTHONPATH=src uvicorn reporter.app:app --host 0.0.0.0 --port ${DATABRICKS_APP_PORT:-8000}"]
