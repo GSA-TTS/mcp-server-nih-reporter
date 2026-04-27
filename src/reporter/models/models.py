@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum 
 from typing import Optional, List
+from reporter.models.spending_categories import SPENDING_CATEGORY_IDS_FY2024
 
 class NIHAgency(Enum): 
     CLC = "CLC"
@@ -362,6 +363,35 @@ class POName(BaseModel):
     first_name: Optional[str] = Field(None, description="Program Officer first name")
     last_name: Optional[str] = Field(None, description="Program Officer last name")
 
+class SpendingCategoriesFilter(BaseModel):
+    """Filter grants by NIH spending category IDs from Appendix I (FY2024)."""
+    values: List[int] = Field(
+        ...,
+        description="One or more NIH spending category numeric IDs (e.g. [27, 31])"
+    )
+    match_all: bool = Field(
+        default=False,
+        description="If true, project must match all provided categories. If false, match at least one."
+    )
+
+    @field_validator("values")
+    @classmethod
+    def validate_values(cls, values: List[int]) -> List[int]:
+        if not values:
+            raise ValueError("spending_categories.values must include at least one category ID")
+        invalid = sorted({v for v in values if v not in SPENDING_CATEGORY_IDS_FY2024})
+        if invalid:
+            raise ValueError(f"Invalid spending category ID(s): {invalid}")
+
+        # Remove duplicates while preserving user-provided order.
+        seen = set()
+        deduped = []
+        for v in values:
+            if v not in seen:
+                seen.add(v)
+                deduped.append(v)
+        return deduped
+
 
 class SearchParams(BaseModel):
     # optional filters
@@ -377,6 +407,10 @@ class SearchParams(BaseModel):
     activity_codes: Optional[List[str]] = Field(None, description="Activity codes associated with the grant (e.g. 'R01', 'F32')")
     funding_mechanisms: Optional[List[FundingMechanism]] = Field(None, description="Funding mechanism categories (e.g. ['RP', 'RC'])")
     award_types: Optional[List[ApplicationType]] = Field(None, description="Application type codes to filter by (e.g. ['1', '2'] for new and competing continuation)")
+    spending_categories: Optional[SpendingCategoriesFilter] = Field(
+        None,
+        description="NIH spending category IDs with match behavior (e.g. {'values': [27, 31], 'match_all': false})"
+    )
 
     def to_api_criteria(self):
         """Convert to API criteria format"""
@@ -430,7 +464,13 @@ class SearchParams(BaseModel):
             criteria["funding_mechanisms"] = [a.value if hasattr(a, 'value') else a for a in self.funding_mechanisms]
         if self.award_types:
             criteria["award_types"] = [a.value if hasattr(a, 'value') else a for a in self.award_types]
+        if self.spending_categories:
+            criteria["spending_categories"] = {
+                "values": self.spending_categories.values,
+                "match_all": self.spending_categories.match_all,
+            }
 
         return criteria
     
+
 

@@ -15,6 +15,22 @@ This project is a pilot study for the creation of an MCP server for the NIH's gr
 
 Each tool is registered with the MCP server and can be called by an LLM or other MCP client. 
 
+## Search Parameters
+
+`SearchParams` now supports NIH spending category filtering via `spending_categories`:
+
+```json
+{
+  "spending_categories": {
+    "values": [27, 31],
+    "match_all": false
+  }
+}
+```
+
+- `values`: List of NIH spending category numeric IDs (Appendix I, FY2024).
+- `match_all`: `true` requires projects to match all listed categories; `false` matches at least one.
+
 ## 🚀 Quick Start 
 
 The code as written is intended for cloud deployment. Contact the admins if you are interested in testing the cloud deployment. Otherwise, the repository may be forked and modified for local implementation. 
@@ -33,3 +49,4 @@ The code as written is intended for cloud deployment. Contact the admins if you 
 ## 💬 Contact
 
 For any questions please contact [Mark Aronson](mailto:mark.aronson@gsa.gov)
+

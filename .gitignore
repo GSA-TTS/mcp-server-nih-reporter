@@ -5,6 +5,8 @@ eval/__pycache__/
 
 # ignore everything in the test_responses folder
 tests/*
+!tests/
+!tests/*.py
 
 # ignore egg-info files 
 src/reporter.egg-info/

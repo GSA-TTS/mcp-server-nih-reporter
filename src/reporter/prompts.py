@@ -125,7 +125,7 @@ def register_prompts(mcp):
 ## Step 1: Fetch the cross-tabulation
 
 Construct `search_params` from the filters described above, mapping them to the appropriate
-`SearchParams` fields (e.g. `agencies`, `organizations`, `pi_name`, `activity_codes`,
+`SearchParams` fields (e.g. `agencies`, `organizations`, `pi_name`, `activity_codes`, `spending_categories`,
 `advanced_text_search`, etc.), then call `get_portfolio_crosstab` with:
 - `row_field`: "fiscal_year"
 - `col_field`: "activity_code"
@@ -150,3 +150,4 @@ Also display the raw counts in a table with one column per activity code:
 | Fiscal Year | R01 | R21 | ... |
 |-------------|-----|-----|-----|
 | YYYY        | N   | N   | ... |"""
+
