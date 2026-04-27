@@ -6,7 +6,7 @@ from typing import Optional, List
 from reporter.models.funding_mechanism_metadata import FUNDING_MECHANISM_DESCRIPTIONS
 from reporter.models.include_field import IncludeField
 from reporter.models.nih_agency import NIHAgency
-from reporter.models.spending_categories import SPENDING_CATEGORY_IDS_FY2024
+from reporter.models.spending_categories import resolve_spending_category_id
 from reporter.models.state_code import StateCode
 
 class SearchOperator(str, Enum):
@@ -144,26 +144,40 @@ class SpendingCategoriesFilter(BaseModel):
     """Filter grants by NIH spending category IDs from Appendix I (FY2024)."""
     values: List[int] = Field(
         ...,
-        description="One or more NIH spending category numeric IDs (e.g. [27, 31])"
+        description="One or more NIH spending category IDs or names (e.g. [31] or ['Aging'])"
     )
     match_all: bool = Field(
         default=False,
         description="If true, project must match all provided categories. If false, match at least one."
     )
 
-    @field_validator("values")
+    @field_validator("values", mode="before")
     @classmethod
-    def validate_values(cls, values: List[int]) -> List[int]:
-        if not values:
+    def validate_values(cls, values) -> List[int]:
+        if isinstance(values, (int, str)):
+            values = [values]
+        if not isinstance(values, list) or not values:
             raise ValueError("spending_categories.values must include at least one category ID")
-        invalid = sorted({v for v in values if v not in SPENDING_CATEGORY_IDS_FY2024})
+
+        resolved: List[int] = []
+        invalid = []
+        for value in values:
+            category_id = resolve_spending_category_id(value)
+            if category_id is None:
+                invalid.append(value)
+            else:
+                resolved.append(category_id)
+
         if invalid:
-            raise ValueError(f"Invalid spending category ID(s): {invalid}")
+            raise ValueError(
+                f"Invalid spending category value(s): {invalid}. "
+                "Use valid IDs or exact category names from Appendix I."
+            )
 
         # Remove duplicates while preserving user-provided order.
         seen = set()
         deduped = []
-        for v in values:
+        for v in resolved:
             if v not in seen:
                 seen.add(v)
                 deduped.append(v)
