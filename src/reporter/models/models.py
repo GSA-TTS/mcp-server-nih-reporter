@@ -1,81 +1,13 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum 
 from typing import Optional, List
+from reporter.models.funding_mechanism_metadata import FUNDING_MECHANISM_DESCRIPTIONS
+from reporter.models.include_field import IncludeField
+from reporter.models.nih_agency import NIHAgency
 from reporter.models.spending_categories import SPENDING_CATEGORY_IDS_FY2024
-
-class NIHAgency(Enum): 
-    CLC = "CLC"
-    CSR = "CSR"
-    CIT = "CIT"
-    FIC = "FIC"
-    NCATS = "NCATS"
-    NCCIH = "NCCIH"
-    NCI = "NCI"
-    NCRR =  "NCRR"
-    NEI = "NEI"
-    NHGRI = "NHGRI"
-    NHLBI = "NHLBI"
-    NIA = "NIA"
-    NIAAA = "NIAAA"
-    NIAID = "NIAID" 
-    NIAMS = "NIAMS"
-    NIBIB = "NIBIB"
-    NICHD = "NICHD"
-    NIDA = "NIDA"
-    NIDCD = "NIDCD"
-    NIDCR = "NIDCR"
-    NIDDK = "NIDDK"
-    NIEHS = "NIEHS"
-    NIGMS = "NIGMS"
-    NIH = "NIH"
-    NIMH = "NIMH"
-    NIMHD = "NIMHD"
-    NINDS = "NINDS"
-    NINR = "NINR"
-    NLM = "NLM"
-    OD = "OD"
-
-    @classmethod
-    def get_full_name(cls, code: str) -> str:
-        """Get the full name of an agency from its code"""
-        full_names = {
-            "CLC": "Clinical Center",
-            "CSR": "Center for Scientific Review",
-            "CIT": "Center for Information Technology",
-            "FIC": "John E. Fogarty International Center",
-            "NCATS": "National Center for Advancing Translational Sciences",
-            "NCCIH": "National Center for Complementary and Integrative Health",
-            "NCI": "National Cancer Institute",
-            "NCRR": "National Center for Research Resources",
-            "NEI": "National Eye Institute",
-            "NHGRI": "National Human Genome Research Institute",
-            "NHLBI": "National Heart, Lung, and Blood Institute",
-            "NIA": "National Institute on Aging",
-            "NIAAA": "National Institute on Alcohol Abuse and Alcoholism",
-            "NIAID": "National Institute of Allergy and Infectious Diseases",
-            "NIAMS": "National Institute of Arthritis and Musculoskeletal and Skin Diseases",
-            "NIBIB": "National Institute of Biomedical Imaging and Bioengineering",
-            "NICHD": "Eunice Kennedy Shriver National Institute of Child Health and Human Development",
-            "NIDA": "National Institute on Drug Abuse",
-            "NIDCD": "National Institute on Deafness and Other Communication Disorders",
-            "NIDCR": "National Institute of Dental and Craniofacial Research",
-            "NIDDK": "National Institute of Diabetes and Digestive and Kidney Diseases",
-            "NIEHS": "National Institute of Environmental Health Sciences",
-            "NIGMS": "National Institute of General Medical Sciences",
-            "NIH": "National Institutes of Health",
-            "NIMH": "National Institute of Mental Health",
-            "NIMHD": "National Institute on Minority Health and Health Disparities",
-            "NINDS": "National Institute of Neurological Disorders and Stroke",
-            "NINR": "National Institute of Nursing Research",
-            "NLM": "National Library of Medicine",
-            "OD": "Office of the Director"
-        }
-        return full_names.get(code, code)
-    
-    @property
-    def full_name(self) -> str:
-        """Get the full name of this agency"""
-        return self.get_full_name(self.value)
+from reporter.models.state_code import StateCode
 
 class SearchOperator(str, Enum):
     """How to combine multiple search terms."""
@@ -170,67 +102,6 @@ class ProjectNum(BaseModel):
         
         return v.upper()  # Normalize to uppercase
 
-class StateCode(str, Enum):
-    AL = "AL"
-    AK = "AK"
-    AZ = "AZ"
-    AR = "AR"
-    CA = "CA"
-    CO = "CO"
-    CT = "CT"
-    DE = "DE"
-    FL = "FL"
-    GA = "GA"
-    HI = "HI"
-    ID = "ID"
-    IL = "IL"
-    IN = "IN"
-    IA = "IA"
-    KS = "KS"
-    KY = "KY"
-    LA = "LA"
-    ME = "ME"
-    MD = "MD"
-    MA = "MA"
-    MI = "MI"
-    MN = "MN"
-    MS = "MS"
-    MO = "MO"
-    MT = "MT"
-    NE = "NE"
-    NV = "NV"
-    NH = "NH"
-    NJ = "NJ"
-    NM = "NM"
-    NY = "NY"
-    NC = "NC"
-    ND = "ND"
-    OH = "OH"
-    OK = "OK"
-    OR = "OR"
-    PA = "PA"
-    RI = "RI"
-    SC = "SC"
-    SD = "SD"
-    TN = "TN"
-    TX = "TX"
-    UT = "UT"
-    VT = "VT"
-    VA = "VA"
-    WA = "WA"
-    WV = "WV"
-    WI = "WI"
-    WY = "WY"
-    DC = "DC"
-    PR = "PR"
-    VI = "VI"
-    GU = "GU"
-    AS = "AS"
-    MP = "MP"
-    FM = "FM"
-    MH = "MH"
-    PW = "PW"
-
 class FundingMechanism(str, Enum):
     """NIH funding mechanism categories for budget tables."""
     NON_SBIR_STTR_RESEARCH = "RP"
@@ -246,103 +117,9 @@ class FundingMechanism(str, Enum):
     INTRAMURAL = "IM"
     OTHER = "Other"
 
-
-class IncludeField(str, Enum):
-    """Valid field names for the include_fields parameter in NIH RePORTER API queries."""
-    # Project identifiers
-    APPL_ID = "ApplId"
-    SUBPROJECT_ID = "SubprojectId"
-    PROJECT_NUM = "ProjectNum"
-    PROJECT_SERIAL_NUM = "ProjectSerialNum"
-    CORE_PROJECT_NUM = "CoreProjectNum"
-    PROJECT_NUM_SPLIT = "ProjectNumSplit"
-
-    # Dates and timing
-    FISCAL_YEAR = "FiscalYear"
-    PROJECT_START_DATE = "ProjectStartDate"
-    PROJECT_END_DATE = "ProjectEndDate"
-    AWARD_NOTICE_DATE = "AwardNoticeDate"
-    BUDGET_START = "BudgetStart"
-    BUDGET_END = "BudgetEnd"
-    DATE_ADDED = "DateAdded"
-
-    # Funding and costs
-    AWARD_AMOUNT = "AwardAmount"
-    DIRECT_COST_AMT = "DirectCostAmt"
-    INDIRECT_COST_AMT = "IndirectCostAmt"
-    AWARD_TYPE = "AwardType"
-    ACTIVITY_CODE = "ActivityCode"
-    FUNDING_MECHANISM = "FundingMechanism"
-    MECHANISM_CODE_DC = "MechanismCodeDc"
-    CFDA_CODE = "CfdaCode"
-
-    # Organization
-    ORGANIZATION = "Organization"
-    ORGANIZATION_TYPE = "OrganizationType"
-    CONG_DIST = "CongDist"
-    GEO_LAT_LON = "GeoLatLon"
-
-    # Personnel
-    PRINCIPAL_INVESTIGATORS = "PrincipalInvestigators"
-    CONTACT_PI_NAME = "ContactPiName"
-    PROGRAM_OFFICERS = "ProgramOfficers"
-
-    # Agency
-    AGENCY_CODE = "AgencyCode"
-    AGENCY_IC_ADMIN = "AgencyIcAdmin"
-    AGENCY_IC_FUNDINGS = "AgencyIcFundings"
-
-    # Project content
-    PROJECT_TITLE = "ProjectTitle"
-    ABSTRACT_TEXT = "AbstractText"
-    PHR_TEXT = "PhrText"
-    TERMS = "Terms"
-    PREF_TERMS = "PrefTerms"
-
-    # Categories and classifications
-    SPENDING_CATEGORIES = "SpendingCategories"
-    SPENDING_CATEGORIES_DESC = "SpendingCategoriesDesc"
-    FULL_STUDY_SECTION = "FullStudySection"
-    OPPORTUNITY_NUMBER = "OpportunityNumber"
-
-    # Status flags
-    IS_ACTIVE = "IsActive"
-    IS_NEW = "IsNew"
-    ARRA_FUNDED = "ArraFunded"
-    COVID_RESPONSE = "CovidResponse"
-
-    # Other
-    PROJECT_DETAIL_URL = "ProjectDetailUrl"
-
-
-class IncludeFields(BaseModel):
-    """Validates and converts a list of field name strings to IncludeField enum members."""
-    fields: List[IncludeField]
-
-    @field_validator("fields", mode="before")
-    @classmethod
-    def coerce_fields(cls, v):
-        if isinstance(v, str):
-            v = [v]
-        if isinstance(v, list):
-            out = []
-            for f in v:
-                if isinstance(f, IncludeField):
-                    out.append(f)
-                elif isinstance(f, str):
-                    matched = None
-                    for field in IncludeField:
-                        if f.upper() == field.name or f == field.value:
-                            matched = field
-                            break
-                    if matched:
-                        out.append(matched)
-                    else:
-                        out.append(f)
-                else:
-                    out.append(f)
-            return out
-        return v
+    @property
+    def description(self) -> str:
+        return FUNDING_MECHANISM_DESCRIPTIONS.get(self.value, self.value)
 
 
 class ApplicationType(str, Enum):
@@ -461,7 +238,7 @@ class SearchParams(BaseModel):
         if self.activity_codes:
             criteria["activity_codes"] = self.activity_codes
         if self.funding_mechanisms:
-            criteria["funding_mechanisms"] = [a.value if hasattr(a, 'value') else a for a in self.funding_mechanisms]
+            criteria["funding_mechanism"] = [a.value if hasattr(a, 'value') else a for a in self.funding_mechanisms]
         if self.award_types:
             criteria["award_types"] = [a.value if hasattr(a, 'value') else a for a in self.award_types]
         if self.spending_categories:
@@ -472,5 +249,6 @@ class SearchParams(BaseModel):
 
         return criteria
     
+
 
 

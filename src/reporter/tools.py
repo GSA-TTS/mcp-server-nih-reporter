@@ -1,6 +1,6 @@
 from typing import List
 from reporter.utils import get_all_responses, get_initial_response, get_project_distributions, build_crosstab, DIMENSION_FIELDS, paged_query
-from reporter.models import SearchParams, ProjectNum, IncludeField, IncludeFields
+from reporter.models import SearchParams, ProjectNum, IncludeField, parse_include_fields
 from fastmcp import Context
 
 def register_tools(mcp):
@@ -220,10 +220,10 @@ def register_tools(mcp):
         )
 
         # Validate and convert include_fields strings to IncludeField enum values
-        fields = IncludeFields(fields=include_fields)
+        fields = parse_include_fields(include_fields)
 
         # Call the API
-        return await get_all_responses(search_params, [f.value for f in fields.fields])
+        return await get_all_responses(search_params, [f.value for f in fields])
 
     @mcp.tool()
     async def get_portfolio_crosstab(

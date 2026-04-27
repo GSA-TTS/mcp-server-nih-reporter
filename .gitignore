@@ -1,5 +1,6 @@
 src/reporter/__pycache__/
 eval/__pycache__/
+__pycache__/
 
 .venv/
 

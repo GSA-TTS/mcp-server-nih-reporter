@@ -1,13 +1,12 @@
+from .nih_agency import NIHAgency
+from .state_code import StateCode
+from .include_field import IncludeField, parse_include_fields
 from .models import (
-    NIHAgency,
     SearchOperator,
     SearchField,
     AdvancedTextSearch,
     ProjectNum,
-    StateCode,
     FundingMechanism,
-    IncludeField,
-    IncludeFields,
     ApplicationType,
     POName,
     SpendingCategoriesFilter,
@@ -23,9 +22,10 @@ __all__ = [
     "StateCode",
     "FundingMechanism",
     "IncludeField",
-    "IncludeFields",
+    "parse_include_fields",
     "ApplicationType",
     "POName",
     "SpendingCategoriesFilter",
     "SearchParams",
 ]
+
