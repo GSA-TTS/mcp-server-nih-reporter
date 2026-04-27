@@ -355,6 +355,20 @@ def _parse_appendix_mapping(raw_text: str) -> dict[int, str]:
 
 SPENDING_CATEGORY_MAP_FY2024: dict[int, str] = _parse_appendix_mapping(_RAW_APPENDIX_I_FY2024)
 SPENDING_CATEGORY_IDS_FY2024: set[int] = set(SPENDING_CATEGORY_MAP_FY2024.keys())
+SPENDING_CATEGORY_NAME_TO_ID_FY2024: dict[str, int] = {
+    name.lower(): category_id for category_id, name in SPENDING_CATEGORY_MAP_FY2024.items()
+}
+
+
+def _normalize_spending_category_name(name: str) -> str:
+    """Normalize a category name for robust text matching."""
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", name.lower())).strip()
+
+
+_SPENDING_CATEGORY_NORMALIZED_NAME_TO_IDS_FY2024: dict[str, list[int]] = {}
+for _category_id, _category_name in SPENDING_CATEGORY_MAP_FY2024.items():
+    _normalized = _normalize_spending_category_name(_category_name)
+    _SPENDING_CATEGORY_NORMALIZED_NAME_TO_IDS_FY2024.setdefault(_normalized, []).append(_category_id)
 
 
 def get_spending_category_name(category_id: int) -> str | None:
@@ -365,3 +379,31 @@ def get_spending_category_name(category_id: int) -> str | None:
 def is_valid_spending_category_id(category_id: int) -> bool:
     """True when the ID appears in the FY2024 Appendix I category list."""
     return category_id in SPENDING_CATEGORY_IDS_FY2024
+
+
+def resolve_spending_category_id(value: int | str) -> int | None:
+    """Resolve a category ID from an ID or category name. Returns None if not found/ambiguous."""
+    if isinstance(value, int):
+        return value if is_valid_spending_category_id(value) else None
+
+    if not isinstance(value, str):
+        return None
+
+    stripped = value.strip()
+    if not stripped:
+        return None
+
+    if stripped.isdigit():
+        as_int = int(stripped)
+        return as_int if is_valid_spending_category_id(as_int) else None
+
+    exact = SPENDING_CATEGORY_NAME_TO_ID_FY2024.get(stripped.lower())
+    if exact is not None:
+        return exact
+
+    normalized = _normalize_spending_category_name(stripped)
+    matches = _SPENDING_CATEGORY_NORMALIZED_NAME_TO_IDS_FY2024.get(normalized, [])
+    if len(matches) == 1:
+        return matches[0]
+
+    return None

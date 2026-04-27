@@ -32,6 +32,12 @@ class SpendingCategoriesTests(unittest.TestCase):
         self.assertEqual(params.spending_categories.values, [27, 31])
         self.assertFalse(params.spending_categories.match_all)
 
+    def test_validation_accepts_spending_category_names(self):
+        params = SearchParams(
+            spending_categories={"values": ["Aging", "31", 31], "match_all": False}
+        )
+        self.assertEqual(params.spending_categories.values, [31])
+
     def test_validation_rejects_invalid_ids(self):
         with self.assertRaises(ValidationError):
             SearchParams(spending_categories={"values": [27, 999999], "match_all": False})
