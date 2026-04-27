@@ -69,6 +69,11 @@ class SpendingCategoriesTests(unittest.TestCase):
         self.assertEqual(criteria["funding_mechanism"], ["SB"])
         self.assertNotIn("funding_mechanisms", criteria)
 
+    def test_single_agency_string_coerces_to_list(self):
+        params = SearchParams(agencies="NIMHD")
+        criteria = params.to_api_criteria()
+        self.assertEqual(criteria["agencies"], ["NIMHD"])
+
     def test_parse_include_fields_accepts_names_and_values(self):
         parsed = parse_include_fields(["AWARD_AMOUNT", "ProjectNum"])
         self.assertEqual(parsed, [IncludeField.AWARD_AMOUNT, IncludeField.PROJECT_NUM])
