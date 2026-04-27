@@ -9,6 +9,20 @@ from reporter.models.nih_agency import NIHAgency
 from reporter.models.spending_categories import resolve_spending_category_id
 from reporter.models.state_code import StateCode
 
+SPENDING_CATEGORIES_VALUES_DESCRIPTION = (
+    "One or more NIH spending category IDs (integers). "
+    "If you don't know the numeric ID for a topic, call the "
+    "`search_spending_categories` tool first with a plain-English term "
+    "(e.g. 'aging', 'breast cancer') to discover valid IDs. "
+    "Do NOT guess or invent category IDs."
+)
+
+SPENDING_CATEGORIES_FIELD_DESCRIPTION = (
+    "Filter projects by NIH Appendix I spending category. "
+    "Use `search_spending_categories` to look up category IDs before "
+    "populating this field."
+)
+
 class SearchOperator(str, Enum):
     """How to combine multiple search terms."""
     ALL = "all"
@@ -144,7 +158,7 @@ class SpendingCategoriesFilter(BaseModel):
     """Filter grants by NIH spending category IDs from Appendix I (FY2024)."""
     values: List[int] = Field(
         ...,
-        description="One or more NIH spending category IDs or names (e.g. [31] or ['Aging'])"
+        description=SPENDING_CATEGORIES_VALUES_DESCRIPTION
     )
     match_all: bool = Field(
         default=False,
@@ -200,7 +214,7 @@ class SearchParams(BaseModel):
     award_types: Optional[List[ApplicationType]] = Field(None, description="Application type codes to filter by (e.g. ['1', '2'] for new and competing continuation)")
     spending_categories: Optional[SpendingCategoriesFilter] = Field(
         None,
-        description="NIH spending category IDs with match behavior (e.g. {'values': [27, 31], 'match_all': false})"
+        description=SPENDING_CATEGORIES_FIELD_DESCRIPTION
     )
 
     @field_validator("agencies", mode="before")
