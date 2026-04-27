@@ -1,6 +1,6 @@
 from typing import List
 from reporter.utils import get_all_responses, get_initial_response, get_project_distributions, build_crosstab, DIMENSION_FIELDS, paged_query
-from reporter.models import SearchParams, ProjectNum, IncludeField, IncludeFields
+from reporter.models import SearchParams, ProjectNum, IncludeField, parse_include_fields
 from fastmcp import Context
 
 def register_tools(mcp):
@@ -16,7 +16,7 @@ def register_tools(mcp):
         retrieving detailed results.
 
         Args:
-            search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, and award_types.
+            search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, award_types, and spending_categories.
 
         Returns:
             dict: API response containing:
@@ -78,7 +78,7 @@ def register_tools(mcp):
         Note: This may be slower for large result sets as it pages through all results.
 
         Args:
-            search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, and award_types.
+            search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, award_types, and spending_categories.
 
         Returns:
             dict: API response containing complete statistics:
@@ -139,7 +139,7 @@ def register_tools(mcp):
         large result sets.
         
         Args:
-            search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, and award_types.
+            search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, award_types, and spending_categories.
             offset (int): Zero-based result offset for pagination.
             limit (int): Number of project IDs to return for this page (max 500).
 
@@ -220,10 +220,10 @@ def register_tools(mcp):
         )
 
         # Validate and convert include_fields strings to IncludeField enum values
-        fields = IncludeFields(fields=include_fields)
+        fields = parse_include_fields(include_fields)
 
         # Call the API
-        return await get_all_responses(search_params, [f.value for f in fields.fields])
+        return await get_all_responses(search_params, [f.value for f in fields])
 
     @mcp.tool()
     async def get_portfolio_crosstab(
@@ -264,3 +264,4 @@ def register_tools(mcp):
 
         all_results = await get_all_responses(search_params, include_fields)
         return build_crosstab(all_results, row_field, col_field)
+

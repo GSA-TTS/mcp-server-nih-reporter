@@ -21,7 +21,7 @@ def register_prompts(mcp):
                - Returns one page of project IDs matching the search criteria
                - Use offset and limit to page through result sets larger than 500
 
-            4. Use get_project_information with only the IncludeFields needed to answer the query:
+            4. Use get_project_information with only the include_fields needed to answer the query:
                - For funding questions: AWARD_AMOUNT, FISCAL_YEAR, DIRECT_COST_AMT, INDIRECT_COST_AMT
                - For PI questions: PRINCIPAL_INVESTIGATORS, CONTACT_PI_NAME
                - For organization questions: ORGANIZATION, CONG_DIST, ORGANIZATION_TYPE
@@ -125,7 +125,7 @@ def register_prompts(mcp):
 ## Step 1: Fetch the cross-tabulation
 
 Construct `search_params` from the filters described above, mapping them to the appropriate
-`SearchParams` fields (e.g. `agencies`, `organizations`, `pi_name`, `activity_codes`,
+`SearchParams` fields (e.g. `agencies`, `organizations`, `pi_name`, `activity_codes`, `spending_categories`,
 `advanced_text_search`, etc.), then call `get_portfolio_crosstab` with:
 - `row_field`: "fiscal_year"
 - `col_field`: "activity_code"
@@ -150,3 +150,4 @@ Also display the raw counts in a table with one column per activity code:
 | Fiscal Year | R01 | R21 | ... |
 |-------------|-----|-----|-----|
 | YYYY        | N   | N   | ... |"""
+
