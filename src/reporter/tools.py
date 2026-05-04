@@ -331,6 +331,7 @@ def register_tools(mcp):
         Args:
             search_params (SearchParams): Search parameters including search term, years,
                 agencies, organizations, pi_name, po_names, award_types, and spending_categories.
+                Use search_spending_categories first if you need to resolve a category name to an ID.
 
         Returns:
             PrefabApp: Interactive table with project number, title, PI, fiscal year,
