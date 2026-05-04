@@ -1,5 +1,6 @@
 import os
 from fastmcp import FastMCP
+from fastmcp.server.transforms.search import BM25SearchTransform
 from reporter.tools import register_tools
 from reporter.prompts import register_prompts
 from reporter.routes import register_routes
@@ -9,6 +10,7 @@ mcp = FastMCP("reporter")
 
 # Register custom tools
 register_tools(mcp)
+mcp.add_transform(BM25SearchTransform())
 
 # Register custom prompts
 register_prompts(mcp)
