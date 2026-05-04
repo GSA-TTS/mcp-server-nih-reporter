@@ -26,7 +26,7 @@ attrs==25.4.0
     #   cyclopts
     #   jsonschema
     #   referencing
-authlib==1.6.8
+authlib==1.6.11
     # via fastmcp
 backports-tarfile==1.2.0 ; python_full_version < '3.12'
     # via jaraco-context
@@ -169,20 +169,20 @@ pydantic-core==2.41.5
     # via pydantic
 pydantic-settings==2.13.1
     # via mcp
-pygments==2.19.2
+pygments==2.20.0
     # via rich
 pyjwt==2.11.0
     # via mcp
 pyperclip==1.11.0
     # via fastmcp
-python-dotenv==1.2.1
+python-dotenv==1.2.2
     # via
     #   fastmcp
     #   mcp
     #   mcp-data-check
     #   pydantic-settings
     #   reporter
-python-multipart==0.0.22
+python-multipart==0.0.26
     # via mcp
 pywin32==311 ; sys_platform == 'win32'
     # via mcp
