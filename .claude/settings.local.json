@@ -6,7 +6,8 @@
       "Bash(git pull:*)",
       "Bash(uv run python:*)",
       "Bash(curl:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:gofastmcp.com)"
     ]
   }
 }

@@ -6,6 +6,8 @@ from reporter.models.spending_categories import (
     _normalize_spending_category_name,
 )
 from fastmcp import Context
+from prefab_ui.app import PrefabApp
+from prefab_ui.components import Column, Heading, DataTable, DataTableColumn
 
 def register_tools(mcp):
     @mcp.tool()
@@ -314,4 +316,61 @@ def register_tools(mcp):
 
         all_results = await get_all_responses(search_params, include_fields)
         return build_crosstab(all_results, row_field, col_field)
+
+    @mcp.tool(app=True)
+    async def get_project_table(
+        search_params: SearchParams,
+    ) -> PrefabApp:
+        """
+        Search NIH RePORTER and display matching projects as an interactive table.
+
+        Use this instead of get_project_information when you want results rendered as a
+        sortable, searchable, paginated table rather than raw text. Performs the search
+        internally — no need to call find_project_ids first.
+
+        Args:
+            search_params (SearchParams): Search parameters including search term, years,
+                agencies, organizations, pi_name, po_names, award_types, and spending_categories.
+                Use search_spending_categories first if you need to resolve a category name to an ID.
+
+        Returns:
+            PrefabApp: Interactive table with project number, title, PI, fiscal year,
+            award amount, activity code, NIH institute, and organization.
+        """
+
+        include_fields = [
+            IncludeField.PROJECT_NUM.value,
+            IncludeField.PROJECT_TITLE.value,
+            IncludeField.CONTACT_PI_NAME.value,
+            IncludeField.FISCAL_YEAR.value,
+            IncludeField.AWARD_AMOUNT.value,
+            IncludeField.ACTIVITY_CODE.value,
+            IncludeField.AGENCY_IC_ADMIN.value,
+            IncludeField.ORGANIZATION.value,
+        ]
+
+        results_data = await get_all_responses(search_params, include_fields)
+        rows = results_data.get("results", [])
+
+        with PrefabApp() as app:
+            with Column(gap=4, css_class="p-6"):
+                Heading(f"NIH Reporter Projects ({len(rows)} results)")
+                DataTable(
+                    columns=[
+                        DataTableColumn(key="project_num", header="Project #", sortable=True),
+                        DataTableColumn(key="project_title", header="Title", sortable=True),
+                        DataTableColumn(key="contact_pi_name", header="PI", sortable=True),
+                        DataTableColumn(key="fiscal_year", header="FY", sortable=True),
+                        DataTableColumn(key="award_amount", header="Award Amount", sortable=True),
+                        DataTableColumn(key="activity_code", header="Activity Code", sortable=True),
+                        DataTableColumn(key="agency_ic_admin", header="Institute", sortable=True),
+                        DataTableColumn(key="org_name", header="Organization", sortable=True),
+                    ],
+                    rows=rows,
+                    search=True,
+                    paginated=True,
+                    page_size=20,
+                )
+
+        return app
 
