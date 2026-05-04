@@ -319,24 +319,23 @@ def register_tools(mcp):
 
     @mcp.tool(app=True)
     async def get_project_table(
-        project_ids: list[str],
+        search_params: SearchParams,
     ) -> PrefabApp:
         """
-        Fetch project information for the given project IDs and display as an interactive table.
+        Search NIH RePORTER and display matching projects as an interactive table.
 
         Use this instead of get_project_information when you want results rendered as a
-        sortable, searchable, paginated table rather than raw text.
+        sortable, searchable, paginated table rather than raw text. Performs the search
+        internally — no need to call find_project_ids first.
 
         Args:
-            project_ids (list[str]): Project ID numbers to look up.
+            search_params (SearchParams): Search parameters including search term, years,
+                agencies, organizations, pi_name, po_names, award_types, and spending_categories.
 
         Returns:
             PrefabApp: Interactive table with project number, title, PI, fiscal year,
             award amount, activity code, NIH institute, and organization.
         """
-        search_params = SearchParams(
-            project_nums=[ProjectNum(project_num=p) for p in project_ids]
-        )
 
         include_fields = [
             IncludeField.PROJECT_NUM.value,
