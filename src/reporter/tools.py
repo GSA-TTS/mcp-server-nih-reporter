@@ -57,29 +57,33 @@ def register_tools(mcp):
         return [{"id": category_id, "name": name} for _, category_id, name in scored[:limit]]
 
     @mcp.tool()
-    async def search_projects(
+    async def get_search_preview(
         ctx: Context,
         search_params: SearchParams,
     ):
         """
-        Tool to perform an initial search of the NIH RePORTER API and return the count of matching projects.
+        Return key statistics about a search portfolio by sampling up to 500 projects.
 
-        Use this tool first to see how many projects match your search criteria before
-        retrieving detailed results.
+        Use this tool first to quickly characterize a search — checking scope, funding levels,
+        and portfolio composition — before committing to a full analysis with get_search_summary.
+        Because it samples rather than pages through all results, it is fast but approximate for
+        large portfolios.
 
         Args:
             search_params (SearchParams): Search parameters including search term, years, agencies, organizations, pi_name, po_names, award_types, and spending_categories.
 
         Returns:
-            dict: API response containing:
-            - total_projects: Total number of matching projects in database
+            dict: Key statistics sampled from up to 500 matching projects:
+            - total_projects: Total number of matching projects in the database (exact)
             - year_distribution: Breakdown of projects by fiscal year
-            - institute_distribution: Breakdown by NIH institute/center
-            - activity_code_distribution: Breakdown by activity code (grant type)
-            - organization_distribution: Breakdown by institution/organization
+            - institute_distribution: Top NIH institutes/centers by project count
+            - activity_code_distribution: Top activity codes (R01, U01, etc.) by project count
+            - organization_distribution: Top institutions by project count
             - funding_mechanism_distribution: Breakdown by funding mechanism
-            - active_status_distribution: Breakdown of active vs inactive projects
-            - award_amount_stats: Funding statistics (total, average, min, max)
+            - active_status_distribution: Active vs inactive project counts
+            - award_amount_stats: Funding statistics (total, average, min, max) for the sample
+            - pi_distribution: Top PIs by number of projects in the sample
+            - pi_funding: Top PIs by total award dollars in the sample
         """
 
         # Get data with fields needed for distributions
@@ -92,6 +96,7 @@ def register_tools(mcp):
             IncludeField.FUNDING_MECHANISM.value,
             IncludeField.IS_ACTIVE.value,
             IncludeField.AWARD_AMOUNT.value,
+            IncludeField.PRINCIPAL_INVESTIGATORS.value,
         ]
 
         # Get initial response (limit 500 for distribution sampling)
@@ -113,6 +118,8 @@ def register_tools(mcp):
             "funding_mechanism_distribution": dict(distributions["funding_mechanism_distribution"].most_common()),
             "active_status_distribution": dict(distributions["active_status_distribution"]),
             "award_amount_stats": distributions["award_amount_stats"],
+            "pi_distribution": dict(distributions["pi_distribution"].most_common(15)),
+            "pi_funding": dict(distributions["pi_funding"].most_common(15)),
         }
 
     @mcp.tool()
@@ -123,7 +130,7 @@ def register_tools(mcp):
         """
         Tool to get a comprehensive summary of ALL projects matching search criteria.
 
-        Unlike search_projects (which samples the first 500 results for a quick preview),
+        Unlike get_search_preview (which samples the first 500 results for a quick preview),
         this tool fetches all matching projects to provide accurate, complete statistics.
         Use this when you need exact totals (e.g., "total funding for cancer research").
 
@@ -154,6 +161,7 @@ def register_tools(mcp):
             IncludeField.FUNDING_MECHANISM.value,
             IncludeField.IS_ACTIVE.value,
             IncludeField.AWARD_AMOUNT.value,
+            IncludeField.PRINCIPAL_INVESTIGATORS.value,
         ]
 
         # Fetch ALL results (pages through entire result set)
@@ -174,7 +182,81 @@ def register_tools(mcp):
             "funding_mechanism_distribution": dict(distributions["funding_mechanism_distribution"].most_common()),
             "active_status_distribution": dict(distributions["active_status_distribution"]),
             "award_amount_stats": distributions["award_amount_stats"],
+            "pi_distribution": dict(distributions["pi_distribution"].most_common(15)),
+            "pi_funding": dict(distributions["pi_funding"].most_common(15)),
         }
+
+    @mcp.tool()
+    async def get_top_awarded(
+        ctx: Context,
+        search_params: SearchParams,
+        group_by: str,
+        limit: int = 15,
+    ):
+        """
+        Rank PIs or institutions by total funding and project count for a search portfolio.
+
+        Use this to answer questions like "who are the top-funded PIs in cancer research?"
+        or "which organizations receive the most NIH funding for diabetes grants?".
+        Fetches all matching projects, so results are complete and accurate.
+
+        Args:
+            search_params (SearchParams): Search parameters to scope the portfolio.
+            group_by (str): Dimension to rank by. Valid options:
+                - "pi": Principal investigators (each PI on a grant is credited individually)
+                - "org_name": Grantee institution name
+                - "agency_ic_admin": NIH institute/center abbreviation
+                - "activity_code": Grant activity code (R01, U01, etc.)
+                - "org_state": Grantee institution state
+                - "funding_mechanism": Funding mechanism
+            limit (int): Number of top results to return (default 15).
+
+        Returns:
+            list[dict]: Entities ranked by total funding (descending), each with:
+                - name: Entity identifier
+                - total_funding: Sum of award amounts across all grants
+                - project_count: Number of grants attributed to this entity
+        """
+        from collections import Counter
+
+        valid = ["pi"] + [k for k in DIMENSION_FIELDS if k != "fiscal_year"]
+        if group_by not in valid:
+            raise ValueError(f"Invalid group_by '{group_by}'. Valid options: {valid}")
+
+        if group_by == "pi":
+            include_fields = [
+                IncludeField.AWARD_AMOUNT.value,
+                IncludeField.PRINCIPAL_INVESTIGATORS.value,
+            ]
+        else:
+            include_fields = list({
+                IncludeField.AWARD_AMOUNT.value,
+                DIMENSION_FIELDS[group_by].value,
+            })
+
+        all_results = await get_all_responses(search_params, include_fields)
+
+        funding_totals = Counter()
+        project_counts = Counter()
+
+        for r in all_results.get("results", []):
+            if not isinstance(r, dict):
+                continue
+            award = r.get("award_amount") or 0
+            if group_by == "pi":
+                for pi in (r.get("principal_investigators") or []):
+                    funding_totals[pi] += award
+                    project_counts[pi] += 1
+            else:
+                key = r.get(group_by)
+                if key:
+                    funding_totals[key] += award
+                    project_counts[key] += 1
+
+        return [
+            {"name": name, "total_funding": total, "project_count": project_counts[name]}
+            for name, total in funding_totals.most_common(limit)
+        ]
 
     @mcp.tool()
     async def find_project_ids(
