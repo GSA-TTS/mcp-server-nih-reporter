@@ -286,6 +286,24 @@ def get_project_distributions(all_results):
             "count": 0
         }
 
+    # PI distribution — count projects and sum funding per PI
+    pi_project_count = Counter()
+    pi_total_funding = Counter()
+
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        award = r.get("award_amount") or 0
+        pis = r.get("principal_investigators")
+        if pis:
+            for pi in pis:
+                pi_project_count[pi] += 1
+                pi_total_funding[pi] += award
+        elif r.get("contact_pi_name"):
+            pi = r["contact_pi_name"]
+            pi_project_count[pi] += 1
+            pi_total_funding[pi] += award
+
     return {
         "project_ids": project_ids,
         "year_distribution": year_dist,
@@ -294,5 +312,7 @@ def get_project_distributions(all_results):
         "organization_distribution": org_dist,
         "funding_mechanism_distribution": funding_mech_dist,
         "active_status_distribution": active_dist,
-        "award_amount_stats": award_stats
+        "award_amount_stats": award_stats,
+        "pi_distribution": pi_project_count,
+        "pi_funding": pi_total_funding,
     }
