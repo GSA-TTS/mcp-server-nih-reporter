@@ -1,0 +1,35 @@
+from typing import List
+from reporter.utils import get_all_responses
+from reporter.models import SearchParams, ProjectNum, parse_include_fields
+
+
+def register(mcp):
+    @mcp.tool()
+    async def get_project_information(
+        project_ids: list[str],
+        include_fields: List[str],
+    ):
+        """
+        Tool to get specified metadata for a project based on project number.
+        Use this to answer questions about award amounts, organizations, PIs, etc.
+
+        Args:
+            project_ids (list[str]): project ID numbers
+            include_fields (List[str]): List of fields to return from the API.
+                Choose fields relevant to the query (e.g., AWARD_AMOUNT for funding questions,
+                PRINCIPAL_INVESTIGATORS for PI questions, ORGANIZATION for institution questions).
+
+        Returns:
+            dict: API response with specified project metadata
+        """
+
+        # add project_ids to a search_params object
+        search_params = SearchParams(
+            project_nums=[ProjectNum(project_num=p) for p in project_ids]
+        )
+
+        # Validate and convert include_fields strings to IncludeField enum values
+        fields = parse_include_fields(include_fields)
+
+        # Call the API
+        return await get_all_responses(search_params, [f.value for f in fields])

@@ -1675,6 +1675,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "asyncio" },
+    { name = "certifi" },
     { name = "fastmcp", extra = ["apps"] },
     { name = "httpx" },
     { name = "langchain" },
@@ -1694,6 +1695,7 @@ dependencies = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40.0" },
     { name = "asyncio", specifier = ">=3.4.3" },
+    { name = "certifi", specifier = ">=2026.4.22" },
     { name = "fastmcp", extras = ["apps"], specifier = ">=2.12.4" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=1.3.0" },
