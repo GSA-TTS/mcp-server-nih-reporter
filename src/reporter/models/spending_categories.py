@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import re
 
+from pydantic import BaseModel, Field, field_validator
+from typing import List
+
 _RAW_APPENDIX_I_FY2024 = """
 2597 Acquired Cognitive Impairment
 24 Acute Respiratory Distress Syndrome
@@ -407,3 +410,50 @@ def resolve_spending_category_id(value: int | str) -> int | None:
         return matches[0]
 
     return None
+
+class SpendingCategoriesFilter(BaseModel):
+    """Filter grants by NIH spending category IDs from Appendix I (FY2024)."""
+    values: List[int] = Field(
+        ...,
+        description="""One or more NIH spending category IDs (integers). 
+    If you don't know the numeric ID for a topic, call the 
+    `search_spending_categories` tool first with a plain-English term 
+    (e.g. 'aging', 'breast cancer') to discover valid IDs. 
+    Do NOT guess or invent category IDs."""
+    )
+    match_all: bool = Field(
+        default=False,
+        description="If true, project must match all provided categories. If false, match at least one."
+    )
+
+    @field_validator("values", mode="before")
+    @classmethod
+    def validate_values(cls, values) -> List[int]:
+        if isinstance(values, (int, str)):
+            values = [values]
+        if not isinstance(values, list) or not values:
+            raise ValueError("spending_categories.values must include at least one category ID")
+
+        resolved: List[int] = []
+        invalid = []
+        for value in values:
+            category_id = resolve_spending_category_id(value)
+            if category_id is None:
+                invalid.append(value)
+            else:
+                resolved.append(category_id)
+
+        if invalid:
+            raise ValueError(
+                f"Invalid spending category value(s): {invalid}. "
+                "Use valid IDs or exact category names from Appendix I."
+            )
+
+        # Remove duplicates while preserving user-provided order.
+        seen = set()
+        deduped = []
+        for v in resolved:
+            if v not in seen:
+                seen.add(v)
+                deduped.append(v)
+        return deduped
