@@ -1,8 +1,8 @@
 from reporter.utils import get_all_responses
 from reporter.models import SearchParams, IncludeField
 from prefab_ui.app import PrefabApp
-from prefab_ui.components import Column, Heading, DataTable, DataTableColumn
-
+from prefab_ui.components import Column, Row, Heading, DataTable, DataTableColumn, EVENT, Button 
+from prefab_ui.actions.mcp import CallTool, RequestDisplayMode
 
 def register(mcp):
     @mcp.tool(app=True)
@@ -42,11 +42,13 @@ def register(mcp):
 
         with PrefabApp() as app:
             with Column(gap=4, css_class="p-6"):
-                Heading(f"NIH Reporter Projects ({len(rows)} results)")
+                with Row(gap=4, align="center", justify="between"):
+                    Heading(f"NIH Reporter Projects ({len(rows)} results)")
+                    Button("Go Fullscreen", on_click=RequestDisplayMode("fullscreen"))
                 DataTable(
                     columns=[
                         DataTableColumn(key="project_num", header="Project #", sortable=True),
-                        DataTableColumn(key="project_title", header="Title", sortable=True),
+                        DataTableColumn(key="project_title", header="Title", sortable=True, max_width="400px", cell_class="truncate"),
                         DataTableColumn(key="contact_pi_name", header="PI", sortable=True),
                         DataTableColumn(key="fiscal_year", header="FY", sortable=True),
                         DataTableColumn(key="award_amount", header="Award Amount", sortable=True),
@@ -58,6 +60,16 @@ def register(mcp):
                     search=True,
                     paginated=True,
                     page_size=20,
+                    on_row_click=CallTool(
+                        "get_project_information",
+                        arguments={
+                            "project_ids": [
+                                {
+                                    "project_num": EVENT.row_data["project_num"]
+                                }
+                            ],
+                        },
+                    ),
                 )
 
         return app
