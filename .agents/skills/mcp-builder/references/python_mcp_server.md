@@ -10,25 +10,33 @@ This document provides Python-specific best practices and examples for implement
 
 ### Key Imports
 ```python
-from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional, List, Dict, Any
+from fastmcp import FastMCP
+from pydantic import Field
+from typing import Annotated, Optional, List, Dict, Any
 from enum import Enum
 import httpx
 ```
 
 ### Server Initialization
 ```python
-mcp = FastMCP("service_mcp")
+mcp = FastMCP("service_mcp", instructions="...")
 ```
 
 ### Tool Registration Pattern
 ```python
 @mcp.tool(name="tool_name", annotations={...})
-async def tool_function(params: InputModel) -> str:
+async def tool_function(
+    param1: Annotated[str, Field(description="...", min_length=1)],
+    param2: Annotated[int, Field(description="...", ge=0)] = 0,
+) -> str:
     # Implementation
     pass
 ```
+
+> **FastMCP 3.x**: Use flat `Annotated[type, Field(...)]` parameters directly in the function
+> signature — **not** a single `params: SomeModel` argument. FastMCP 3.x treats a Pydantic
+> model parameter literally (requiring callers to pass `{"params": {...}}`), which breaks
+> LLM tool use. Inline `Annotated` fields produce the flat JSON schema LLMs expect.
 
 ---
 
@@ -54,6 +62,57 @@ The name should be:
 - Easy to infer from the task description
 - Without version numbers or dates
 
+## app.py Structure
+
+`app.py` is the single file that owns server initialization and transport. Keep it thin — no
+tool logic lives here.
+
+```python
+import os
+
+from dotenv import load_dotenv
+from fastmcp import FastMCP
+
+from <servername>.tools import register_tools
+
+load_dotenv()  # loads .env before any code reads API keys
+
+mcp = FastMCP(
+    "<service>_mcp",
+    instructions=(
+        "One paragraph: what this server is for and what API it wraps.\n\n"
+        "TOOL SELECTION GUIDE:\n"
+        "- Natural-language use case → tool_name\n"
+        "- Another use case → other_tool_name\n\n"
+        "Any important conventions (date formats, ID formats, pagination, rate limits).\n\n"
+        "AUTHENTICATION: Requires SERVICE_API_KEY environment variable."
+    ),
+)
+
+register_tools(mcp)
+
+if __name__ == "__main__":
+    # Dual-transport: HTTP when a platform port env var is set (Databricks Apps, Cloud Run,
+    # etc.), stdio otherwise (Claude Desktop, Claude Code, local MCP clients).
+    port_env = os.getenv("DATABRICKS_APP_PORT") or os.getenv("PORT")
+    if port_env:
+        mcp.run(transport="http", host="0.0.0.0", port=int(port_env))
+    else:
+        mcp.run(transport="stdio")
+```
+
+**`instructions` guidelines:**
+- Lead with one sentence on what the server wraps and why an LLM would use it
+- Include a `TOOL SELECTION GUIDE` mapping natural-language tasks to tool names — this is the
+  highest-value content since it steers the LLM to the right tool without trial and error
+- Document any domain conventions the LLM needs to call tools correctly (fiscal year
+  definitions, ID formats, pagination defaults, casing rules)
+- End with the env var name required for authentication
+
+**`python-dotenv`:** Add `python-dotenv` to your dependencies and call `load_dotenv()` at the
+top of `app.py`. This lets developers drop a `.env` file in the project root for local
+development without setting system env vars, while deployed environments supply vars directly.
+
 ## Tool Implementation
 
 ### Tool Naming
@@ -65,51 +124,44 @@ Use snake_case for tool names (e.g., "search_users", "create_project", "get_chan
 - Use "github_create_issue" instead of just "create_issue"
 - Use "asana_list_tasks" instead of just "list_tasks"
 
-### Tool Structure with FastMCP
+### Tool Structure with FastMCP 3.x
 
-Tools are defined using the `@mcp.tool` decorator with Pydantic models for input validation:
+Tools are defined using the `@mcp.tool` decorator with flat `Annotated` parameters for input
+validation. **Do not** use a single `params: SomeModel` argument — FastMCP 3.x exposes it as
+a nested object in the JSON schema, which breaks LLM tool use.
 
 ```python
-from pydantic import BaseModel, Field, ConfigDict
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+from pydantic import Field
+from typing import Annotated, Optional, List
 
 # Initialize the MCP server
 mcp = FastMCP("example_mcp")
-
-# Define Pydantic model for input validation
-class ServiceToolInput(BaseModel):
-    '''Input model for service tool operation.'''
-    model_config = ConfigDict(
-        str_strip_whitespace=True,  # Auto-strip whitespace from strings
-        validate_assignment=True,    # Validate on assignment
-        extra='forbid'              # Forbid extra fields
-    )
-
-    param1: str = Field(..., description="First parameter description (e.g., 'user123', 'project-abc')", min_length=1, max_length=100)
-    param2: Optional[int] = Field(default=None, description="Optional integer parameter with constraints", ge=0, le=1000)
-    tags: Optional[List[str]] = Field(default_factory=list, description="List of tags to apply", max_items=10)
 
 @mcp.tool(
     name="service_tool_name",
     annotations={
         "title": "Human-Readable Tool Title",
-        "readOnlyHint": True,     # Tool does not modify environment
-        "destructiveHint": False,  # Tool does not perform destructive operations
-        "idempotentHint": True,    # Repeated calls have no additional effect
-        "openWorldHint": False     # Tool does not interact with external entities
+        "readOnlyHint": True,      # Tool does not modify environment
+        "destructiveHint": False,   # Tool does not perform destructive operations
+        "idempotentHint": True,     # Repeated calls have no additional effect
+        "openWorldHint": False      # Tool does not interact with external entities
     }
 )
-async def service_tool_name(params: ServiceToolInput) -> str:
+async def service_tool_name(
+    param1: Annotated[str, Field(description="First parameter (e.g., 'user123')", min_length=1, max_length=100)],
+    param2: Annotated[Optional[int], Field(description="Optional integer, 0–1000", ge=0, le=1000)] = None,
+    tags: Annotated[Optional[List[str]], Field(description="List of tags to apply")] = None,
+) -> str:
     '''Tool description automatically becomes the 'description' field.
 
-    This tool performs a specific operation on the service. It validates all inputs
-    using the ServiceToolInput Pydantic model before processing.
+    This tool performs a specific operation on the service. Pydantic validates all
+    inputs via the Annotated Field constraints before the function body runs.
 
     Args:
-        params (ServiceToolInput): Validated input parameters containing:
-            - param1 (str): First parameter description
-            - param2 (Optional[int]): Optional parameter with default
-            - tags (Optional[List[str]]): List of tags
+        param1 (str): First parameter description
+        param2 (Optional[int]): Optional parameter with default
+        tags (Optional[List[str]]): List of tags
 
     Returns:
         str: JSON-formatted response containing operation results
@@ -118,7 +170,24 @@ async def service_tool_name(params: ServiceToolInput) -> str:
     pass
 ```
 
+**Why `Annotated[type, Field(...)]` instead of a Pydantic model?**
+
+FastMCP 3.x maps each function parameter directly to a top-level JSON schema property. When
+you pass a Pydantic model as a single argument (e.g., `params: MyModel`), the schema wraps
+everything under a `params` key, forcing the LLM to call the tool like
+`{"params": {"param1": "...", "param2": 42}}`. With inline `Annotated` fields the schema is
+flat (`{"param1": "...", "param2": 42}`), which is what LLMs expect.
+
+You still get all Pydantic validation: `ge`, `le`, `min_length`, `max_length`, `pattern`,
+enum types, and custom validators — just expressed inline rather than in a model class.
+
+Pydantic `BaseModel` classes remain useful as **response types** or for internal data
+structures, just not as tool input parameters.
+
 ## Pydantic v2 Key Features
+
+Pydantic `BaseModel` classes are used for **response types, internal data structures, and
+shared type definitions** — not as tool input parameters (see tool structure section above).
 
 - Use `model_config` instead of nested `Config` class
 - Use `field_validator` instead of deprecated `validator`
@@ -129,7 +198,8 @@ async def service_tool_name(params: ServiceToolInput) -> str:
 ```python
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-class CreateUserInput(BaseModel):
+# Good use: response shape or internal data model
+class UserRecord(BaseModel):
     model_config = ConfigDict(
         str_strip_whitespace=True,
         validate_assignment=True
@@ -145,6 +215,29 @@ class CreateUserInput(BaseModel):
         if not v.strip():
             raise ValueError("Email cannot be empty")
         return v.lower()
+
+# Bad use: passing this as a tool parameter wraps it under a "params" key in the schema
+# @mcp.tool(...)
+# async def my_tool(params: UserRecord) -> str:   # DON'T do this
+#     ...
+```
+
+For enum types used as tool parameters, use `str` enums with `Annotated`:
+
+```python
+from enum import Enum
+from typing import Annotated
+from pydantic import Field
+
+class ResponseFormat(str, Enum):
+    MARKDOWN = "markdown"
+    JSON = "json"
+
+# Use directly as an Annotated parameter default:
+async def my_tool(
+    response_format: Annotated[ResponseFormat, Field(description="Output format")] = ResponseFormat.MARKDOWN,
+) -> str:
+    ...
 ```
 
 ## Response Format Options
@@ -153,18 +246,22 @@ Support multiple output formats for flexibility:
 
 ```python
 from enum import Enum
+from typing import Annotated
+from pydantic import Field
 
 class ResponseFormat(str, Enum):
     '''Output format for tool responses.'''
     MARKDOWN = "markdown"
     JSON = "json"
 
-class UserSearchInput(BaseModel):
-    query: str = Field(..., description="Search query")
-    response_format: ResponseFormat = Field(
-        default=ResponseFormat.MARKDOWN,
+# Use as an Annotated parameter with a default:
+async def my_tool(
+    query: Annotated[str, Field(description="Search query")],
+    response_format: Annotated[ResponseFormat, Field(
         description="Output format: 'markdown' for human-readable or 'json' for machine-readable"
-    )
+    )] = ResponseFormat.MARKDOWN,
+) -> str:
+    ...
 ```
 
 **Markdown format**:
@@ -184,22 +281,23 @@ class UserSearchInput(BaseModel):
 For tools that list resources:
 
 ```python
-class ListInput(BaseModel):
-    limit: Optional[int] = Field(default=20, description="Maximum results to return", ge=1, le=100)
-    offset: Optional[int] = Field(default=0, description="Number of results to skip for pagination", ge=0)
+from typing import Annotated, Optional
+from pydantic import Field
 
-async def list_items(params: ListInput) -> str:
-    # Make API request with pagination
-    data = await api_request(limit=params.limit, offset=params.offset)
+@mcp.tool(name="example_list_items")
+async def example_list_items(
+    limit: Annotated[Optional[int], Field(description="Maximum results to return", ge=1, le=100)] = 20,
+    offset: Annotated[Optional[int], Field(description="Number of results to skip for pagination", ge=0)] = 0,
+) -> str:
+    data = await api_request(limit=limit, offset=offset)
 
-    # Return pagination info
     response = {
         "total": data["total"],
         "count": len(data["items"]),
-        "offset": params.offset,
+        "offset": offset,
         "items": data["items"],
-        "has_more": data["total"] > params.offset + len(data["items"]),
-        "next_offset": params.offset + len(data["items"]) if data["total"] > params.offset + len(data["items"]) else None
+        "has_more": data["total"] > offset + len(data["items"]),
+        "next_offset": offset + len(data["items"]) if data["total"] > offset + len(data["items"]) else None
     }
     return json.dumps(response, indent=2)
 ```
@@ -275,112 +373,79 @@ async def get_user(user_id: str) -> Dict[str, Any]:
 
 ## Tool Docstrings
 
-Every tool must have comprehensive docstrings with explicit type information:
+Every tool must have a concise docstring covering purpose, usage guidance, and error behaviour.
+Parameter types and constraints are already expressed in the `Annotated[type, Field(...)]`
+signatures — don't duplicate them in the docstring.
 
 ```python
-async def search_users(params: UserSearchInput) -> str:
-    '''
-    Search for users in the Example system by name, email, or team.
+async def example_search_users(
+    query: Annotated[str, Field(description="Search string", min_length=2, max_length=200)],
+    limit: Annotated[Optional[int], Field(description="Max results", ge=1, le=100)] = 20,
+    offset: Annotated[Optional[int], Field(description="Pagination offset", ge=0)] = 0,
+    response_format: Annotated[ResponseFormat, Field(description="Output format")] = ResponseFormat.MARKDOWN,
+) -> str:
+    '''Search for users in the Example system by name, email, or team.
 
-    This tool searches across all user profiles in the Example platform,
-    supporting partial matches and various search filters. It does NOT
-    create or modify users, only searches existing ones.
+    Does NOT create or modify users — only searches existing ones.
 
-    Args:
-        params (UserSearchInput): Validated input parameters containing:
-            - query (str): Search string to match against names/emails (e.g., "john", "@example.com", "team:marketing")
-            - limit (Optional[int]): Maximum results to return, between 1-100 (default: 20)
-            - offset (Optional[int]): Number of results to skip for pagination (default: 0)
+    Use when: "Find all marketing team members" -> query="team:marketing"
+    Use when: "Search for John's account" -> query="john"
+    Don't use when: You need to create a user (use example_create_user instead).
+    Don't use when: You have a user ID (use example_get_user instead — faster).
 
-    Returns:
-        str: JSON-formatted string containing search results with the following schema:
+    Returns JSON schema on success:
+    {
+        "total": int, "count": int, "offset": int,
+        "users": [{"id": str, "name": str, "email": str, "team": str}],
+        "has_more": bool, "next_offset": int
+    }
 
-        Success response:
-        {
-            "total": int,           # Total number of matches found
-            "count": int,           # Number of results in this response
-            "offset": int,          # Current pagination offset
-            "users": [
-                {
-                    "id": str,      # User ID (e.g., "U123456789")
-                    "name": str,    # Full name (e.g., "John Doe")
-                    "email": str,   # Email address (e.g., "john@example.com")
-                    "team": str     # Team name (e.g., "Marketing") - optional
-                }
-            ]
-        }
-
-        Error response:
-        "Error: <error message>" or "No users found matching '<query>'"
-
-    Examples:
-        - Use when: "Find all marketing team members" -> params with query="team:marketing"
-        - Use when: "Search for John's account" -> params with query="john"
-        - Don't use when: You need to create a user (use example_create_user instead)
-        - Don't use when: You have a user ID and need full details (use example_get_user instead)
-
-    Error Handling:
-        - Input validation errors are handled by Pydantic model
-        - Returns "Error: Rate limit exceeded" if too many requests (429 status)
-        - Returns "Error: Invalid API authentication" if API key is invalid (401 status)
-        - Returns formatted list of results or "No users found matching 'query'"
+    Error responses:
+    - "Error: Rate limit exceeded" — 429 from API
+    - "Error: Invalid API key" — 403 from API
+    - "No users found matching '<query>'" — empty result set
     '''
 ```
 
 ## Complete Example
 
-See below for a complete Python MCP server example:
+See below for a complete Python MCP server example using the FastMCP 3.x pattern:
 
 ```python
 #!/usr/bin/env python3
-'''
-MCP Server for Example Service.
+'''MCP Server for Example Service.'''
 
-This server provides tools to interact with Example API, including user search,
-project management, and data export capabilities.
-'''
-
-from typing import Optional, List, Dict, Any
+import json
+import os
+from typing import Annotated, Optional
 from enum import Enum
 import httpx
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
+from pydantic import Field
+from fastmcp import FastMCP
 
-# Initialize the MCP server
-mcp = FastMCP("example_mcp")
+load_dotenv()  # loads .env into os.environ before anything reads API keys
 
-# Constants
+mcp = FastMCP(
+    "example_mcp",
+    instructions=(
+        "This server provides access to the Example API. "
+        "TOOL SELECTION GUIDE:\n"
+        "- Search for a user by name or email → example_search_users\n"
+        "- Get full details for a known user ID → example_get_user\n"
+        "AUTHENTICATION: Requires EXAMPLE_API_KEY environment variable."
+    ),
+)
+
 API_BASE_URL = "https://api.example.com/v1"
 
-# Enums
+
 class ResponseFormat(str, Enum):
-    '''Output format for tool responses.'''
     MARKDOWN = "markdown"
     JSON = "json"
 
-# Pydantic Models for Input Validation
-class UserSearchInput(BaseModel):
-    '''Input model for user search operations.'''
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True
-    )
 
-    query: str = Field(..., description="Search string to match against names/emails", min_length=2, max_length=200)
-    limit: Optional[int] = Field(default=20, description="Maximum results to return", ge=1, le=100)
-    offset: Optional[int] = Field(default=0, description="Number of results to skip for pagination", ge=0)
-    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN, description="Output format")
-
-    @field_validator('query')
-    @classmethod
-    def validate_query(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Query cannot be empty or whitespace only")
-        return v.strip()
-
-# Shared utility functions
 async def _make_api_request(endpoint: str, method: str = "GET", **kwargs) -> dict:
-    '''Reusable function for all API calls.'''
     async with httpx.AsyncClient() as client:
         response = await client.request(
             method,
@@ -391,8 +456,8 @@ async def _make_api_request(endpoint: str, method: str = "GET", **kwargs) -> dic
         response.raise_for_status()
         return response.json()
 
+
 def _handle_api_error(e: Exception) -> str:
-    '''Consistent error formatting across all tools.'''
     if isinstance(e, httpx.HTTPStatusError):
         if e.response.status_code == 404:
             return "Error: Resource not found. Please check the ID is correct."
@@ -405,7 +470,7 @@ def _handle_api_error(e: Exception) -> str:
         return "Error: Request timed out. Please try again."
     return f"Error: Unexpected error occurred: {type(e).__name__}"
 
-# Tool definitions
+
 @mcp.tool(
     name="example_search_users",
     annotations={
@@ -413,62 +478,60 @@ def _handle_api_error(e: Exception) -> str:
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
-        "openWorldHint": True
-    }
+        "openWorldHint": True,
+    },
 )
-async def example_search_users(params: UserSearchInput) -> str:
+async def example_search_users(
+    query: Annotated[str, Field(description="Search string to match against names/emails", min_length=2, max_length=200)],
+    limit: Annotated[Optional[int], Field(description="Maximum results to return", ge=1, le=100)] = 20,
+    offset: Annotated[Optional[int], Field(description="Number of results to skip for pagination", ge=0)] = 0,
+    response_format: Annotated[ResponseFormat, Field(description="Output format: 'markdown' or 'json'")] = ResponseFormat.MARKDOWN,
+) -> str:
     '''Search for users in the Example system by name, email, or team.
 
-    [Full docstring as shown above]
+    Use when: "Find all marketing team members", "Search for John's account".
+    Don't use when: You need to create a user (use example_create_user instead).
     '''
     try:
-        # Make API request using validated parameters
         data = await _make_api_request(
             "users/search",
-            params={
-                "q": params.query,
-                "limit": params.limit,
-                "offset": params.offset
-            }
+            params={"q": query, "limit": limit, "offset": offset}
         )
 
         users = data.get("users", [])
         total = data.get("total", 0)
 
         if not users:
-            return f"No users found matching '{params.query}'"
+            return f"No users found matching '{query}'"
 
-        # Format response based on requested format
-        if params.response_format == ResponseFormat.MARKDOWN:
-            lines = [f"# User Search Results: '{params.query}'", ""]
-            lines.append(f"Found {total} users (showing {len(users)})")
-            lines.append("")
-
+        if response_format == ResponseFormat.MARKDOWN:
+            lines = [f"# User Search Results: '{query}'", "",
+                     f"Found {total} users (showing {len(users)})", ""]
             for user in users:
                 lines.append(f"## {user['name']} ({user['id']})")
                 lines.append(f"- **Email**: {user['email']}")
                 if user.get('team'):
                     lines.append(f"- **Team**: {user['team']}")
                 lines.append("")
-
             return "\n".join(lines)
 
-        else:
-            # Machine-readable JSON format
-            import json
-            response = {
-                "total": total,
-                "count": len(users),
-                "offset": params.offset,
-                "users": users
-            }
-            return json.dumps(response, indent=2)
+        return json.dumps({
+            "total": total,
+            "count": len(users),
+            "offset": offset,
+            "users": users,
+        }, indent=2)
 
     except Exception as e:
         return _handle_api_error(e)
 
+
 if __name__ == "__main__":
-    mcp.run()
+    port_env = os.getenv("DATABRICKS_APP_PORT") or os.getenv("PORT")
+    if port_env:
+        mcp.run(transport="http", host="0.0.0.0", port=int(port_env))
+    else:
+        mcp.run(transport="stdio")
 ```
 
 ---
@@ -480,7 +543,7 @@ if __name__ == "__main__":
 FastMCP can automatically inject a `Context` parameter into tools for advanced capabilities like logging, progress reporting, resource reading, and user interaction:
 
 ```python
-from mcp.server.fastmcp import FastMCP, Context
+from fastmcp import FastMCP, Context
 
 mcp = FastMCP("example_mcp")
 
@@ -618,21 +681,27 @@ async def query_data(query: str, ctx: Context) -> str:
 
 ### Transport Options
 
-FastMCP supports two main transport mechanisms:
+FastMCP supports two main transport mechanisms. Use a dual-transport `__main__` block so the
+same `app.py` works both as a local stdio server and as a deployed HTTP service without any
+code changes:
 
 ```python
-# stdio transport (for local tools) - default
-if __name__ == "__main__":
-    mcp.run()
+import os
 
-# Streamable HTTP transport (for remote servers)
 if __name__ == "__main__":
-    mcp.run(transport="streamable_http", port=8000)
+    # Check for a platform port env var (set by Databricks Apps, Cloud Run, etc.).
+    # If present, run as an HTTP server. Otherwise fall back to stdio for local
+    # MCP clients (Claude Desktop, Claude Code, etc.).
+    port_env = os.getenv("DATABRICKS_APP_PORT") or os.getenv("PORT")
+    if port_env:
+        mcp.run(transport="http", host="0.0.0.0", port=int(port_env))
+    else:
+        mcp.run(transport="stdio")
 ```
 
 **Transport selection:**
-- **stdio**: Command-line tools, local integrations, subprocess execution
-- **Streamable HTTP**: Web services, remote access, multiple clients
+- **stdio**: Local MCP clients (Claude Desktop, Claude Code), single-user subprocess execution
+- **http**: Deployed web services, Databricks Apps, Cloud Run, multi-client scenarios
 
 ---
 
@@ -687,14 +756,22 @@ Before finalizing your Python MCP server implementation, ensure:
 - [ ] Error messages are clear, actionable, and educational
 - [ ] Outputs are properly validated and formatted
 
+### app.py
+- [ ] `load_dotenv()` called at the top before any code reads env vars
+- [ ] `python-dotenv` listed in project dependencies
+- [ ] `FastMCP` initialized with a meaningful `instructions` string
+- [ ] `instructions` includes a TOOL SELECTION GUIDE mapping tasks to tool names
+- [ ] `instructions` documents domain conventions and the required env var name
+- [ ] Dual-transport `__main__` block: HTTP when `DATABRICKS_APP_PORT`/`PORT` is set, stdio otherwise
+- [ ] No tool logic in `app.py` — only server init and transport configuration
+
 ### Tool Configuration
 - [ ] All tools implement 'name' and 'annotations' in the decorator
 - [ ] Annotations correctly set (readOnlyHint, destructiveHint, idempotentHint, openWorldHint)
-- [ ] All tools use Pydantic BaseModel for input validation with Field() definitions
-- [ ] All Pydantic Fields have explicit types and descriptions with constraints
-- [ ] All tools have comprehensive docstrings with explicit input/output types
-- [ ] Docstrings include complete schema structure for dict/JSON returns
-- [ ] Pydantic models handle input validation (no manual validation needed)
+- [ ] All tool parameters use `Annotated[type, Field(...)]` — NOT a single `params: Model` argument
+- [ ] All `Field()` definitions have explicit descriptions and appropriate constraints (ge, le, min_length, pattern, etc.)
+- [ ] All tools have concise docstrings covering purpose, usage examples, return schema, and error responses
+- [ ] Pydantic `BaseModel` classes used only for response types or internal data structures, not tool inputs
 
 ### Advanced Features (where applicable)
 - [ ] Context injection used for logging, progress, or elicitation
