@@ -1,0 +1,11 @@
+query,responses
+"Who is the PI for NIH grant 1R35GM133616?","The PI is Allyson Sgro"
+"What organization received NIH grant 5R00AG061251?","The University of Alabama at Birmingham"
+"What is the weather today?","I am an agent for the NIH Reporter database and cannot provide weather information. Please ask me questions related to NIH grants and research projects."
+"What is the median amount of funding Boston University received from NCI in 2019?","$360,112"
+"What percentage of R01 grants funded by NHLBI in fiscal years 2020-2023 went to institutions in the top 3 states by total grant count?","30.55%"
+"Which PI has received the most funding for grants that are tagged with BOTH 'Alzheimer's Disease' and 'Artificial Intelligence' spending categories from 2018 to 2024 and what is the amount?","Andrew  Singleton with $58,223,390"
+"Compare the portfolios of program officers whose last name is 'Johnson' versus those with last name 'Smith' between the years of 2018 and 2023 in terms of average project duration. Which PO group manages longer projects on average?","Johnson, with an average of 2307 days"
+"Which research areas (based on spending categories) did NIH funding decrease by more than 30% between 2019 and 2023, but the number of unique PIs increased?"
+"For PIs who received a Type 1 (new) R01 grant in 2020, what percentage successfully obtained a Type 5 award for the same core project by 2024?"
+"For funding opportunity number 'PA-25-301', calculate a Herfindahl index for institutional concentration of awarded grants in fiscal year 2022. Which institution has the highest market share and what is the index value?","1.13%"
