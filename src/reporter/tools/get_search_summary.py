@@ -16,6 +16,9 @@ def register(mcp):
         this tool fetches all matching projects to provide accurate, complete statistics.
         Use this when you need exact totals (e.g., "total funding for cancer research").
 
+        When searching for terms, default to searching spending categories before using a 
+        text search. Spending category labels are the official NIH designation for grants. 
+
         Note: This may be slower for large result sets as it pages through all results.
 
         Args:

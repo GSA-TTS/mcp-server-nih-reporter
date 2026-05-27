@@ -77,7 +77,7 @@ class SearchParams(BaseModel):
                 for po in self.po_names
             ]
         if self.project_nums:
-            criteria["project_nums"] = [a.project_num for a in self.project_nums]
+            criteria["project_nums"] = self.project_nums
         if self.org_states:
             criteria["org_states"] = [a.value if hasattr(a, 'value') else a for a in self.org_states]
         if self.opportunity_numbers:
