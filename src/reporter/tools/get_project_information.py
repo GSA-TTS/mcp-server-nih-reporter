@@ -6,7 +6,7 @@ from reporter.models import SearchParams, ProjectNum, IncludeField
 def register(mcp):
     @mcp.tool()
     async def get_project_information(
-        project_ids: list[ProjectNum],
+        project_ids: list[str],
         include_fields: list[IncludeField],
 ):
         """
@@ -14,7 +14,7 @@ def register(mcp):
         Use this to answer questions about award amounts, organizations, PIs, etc.
 
         Args:
-            project_ids (list[str]): project ID numbers
+            project_ids (list[str]): project ID numbers (e.g. ['P50DA056408-01', '1F32AG052995-01A1']).
             include_fields (list[str]): List of fields to return from the API.
                 Choose fields relevant to the query (e.g., AwardAmount for funding questions,
                 PrincipalInvestigators for PI questions, Organization for institution questions).
@@ -25,7 +25,7 @@ def register(mcp):
 
         # add project_ids to a search_params object
         search_params = SearchParams(
-            project_nums=[ProjectNum(project_num=p) for p in project_ids]
+            project_nums=project_ids
         )
 
         # Validate and convert include_fields strings to IncludeField enum values
