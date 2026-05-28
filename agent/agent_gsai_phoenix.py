@@ -21,7 +21,7 @@ async def main():
     # Connect to standalone Phoenix server
     print("🔥 Connecting to Phoenix server...")
     tracer_provider = register(
-        project_name="nih-reporter-agent",  # Name your project
+        project_name="nih-portfolio-agent",  # Name your project
         endpoint="http://localhost:4317",   # Phoenix OpenTelemetry endpoint
     )
     
@@ -37,6 +37,14 @@ async def main():
                     "transport": "stdio",
                     "command": "uv",
                     "args": ["run", "src/reporter/app.py"],
+                },
+            "clinical_trials_server": {
+                    "transport": "http",
+                    "url": "http://localhost:8001/mcp",
+                },
+            "ncbi_eutils_server": {
+                    "transport": "http",
+                    "url": "http://localhost:8000/mcp",
                 }
         }
     )
@@ -62,7 +70,7 @@ async def main():
 
     print("Invoking agent...")
     response = await agent.ainvoke(
-        {"messages": [HumanMessage(content="How many R01s did NIMHD award in 2024?")]},
+        {"messages": [HumanMessage(content="Give me a summary of the funding for grant with base number R01 AT009541, including resulting publications and clinical trials")]},
         config=config
     )
 
