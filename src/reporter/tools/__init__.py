@@ -6,6 +6,7 @@ allowing searches, summaries, and analysis of NIH research grants.
 """
 
 from . import (
+    create_search_dashboard,
     search_spending_categories,
     get_search_preview,
     get_search_summary,
@@ -19,6 +20,7 @@ from . import (
 
 def register_tools(mcp):
     """Register all NIH Reporter tools with the MCP server."""
+    create_search_dashboard.register(mcp)
     search_spending_categories.register(mcp)
     get_search_preview.register(mcp)
     get_search_summary.register(mcp)

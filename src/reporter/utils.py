@@ -2,6 +2,7 @@ import requests
 import asyncio
 from reporter.models import SearchParams, IncludeField
 from fastmcp import Context
+import pandas as pd
 
 # Maps response field keys (after clean_json) to the IncludeField needed to fetch them.
 # org_name and org_state both come from the Organization include field.
@@ -316,3 +317,76 @@ def get_project_distributions(all_results):
         "pi_distribution": pi_project_count,
         "pi_funding": pi_total_funding,
     }
+
+
+
+def get_project_distributions_df(all_results):
+    """
+    Parse API response containing grant data and return a pandas DataFrame.
+
+    Args:
+        all_results (dict): API response containing grant data with a "results" key
+    
+    Returns:
+        pd.DataFrame: DataFrame with one row per grant containing:
+            - project_num: Project ID string
+            - fiscal_year: Fiscal year of the grant
+            - agency_ic_admin: NIH institute/center
+            - activity_code: Activity code
+            - org_name: Organization name
+            - funding_mechanism: Funding mechanism
+            - is_active: Boolean for active status
+            - active_status: String ("Active" or "Inactive")
+            - award_amount: Award amount (numeric)
+            - principal_investigators: Semicolon-separated string of PIs
+            - contact_pi_name: Primary contact PI name
+            - pi_count: Number of principal investigators
+    """
+    
+    results = all_results.get("results", [])
+    
+    # Filter to only dict results
+    valid_results = [r for r in results if isinstance(r, dict)]
+    
+    # Build list of records for DataFrame
+    records = []
+    for r in valid_results:
+        # Handle principal investigators
+        pis = r.get("principal_investigators")
+        if pis and isinstance(pis, list):
+            pi_string = "; ".join(str(pi) for pi in pis)
+            pi_count = len(pis)
+        else:
+            pi_string = None
+            pi_count = 0
+        
+        # Get contact PI
+        contact_pi = r.get("contact_pi_name")
+        
+        # Determine active status string
+        is_active = r.get("is_active")
+        active_status = None
+        if is_active is not None:
+            active_status = "Active" if is_active else "Inactive"
+        
+        record = {
+            "project_num": r.get("project_num"),
+            "fiscal_year": r.get("fiscal_year"),
+            "agency_ic_admin": r.get("agency_ic_admin"),
+            "activity_code": r.get("activity_code"),
+            "org_name": r.get("org_name"),
+            "funding_mechanism": r.get("funding_mechanism"),
+            "is_active": is_active,
+            "active_status": active_status,
+            "award_amount": r.get("award_amount"),
+            "principal_investigators": pi_string,
+            "contact_pi_name": contact_pi,
+            "pi_count": pi_count if pi_count > 0 else (1 if contact_pi else 0)
+        }
+        
+        records.append(record)
+    
+    # Create DataFrame
+    df = pd.DataFrame(records)
+    
+    return df
