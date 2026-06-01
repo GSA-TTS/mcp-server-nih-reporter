@@ -11,7 +11,7 @@ client = Client()
 
 # Get the dataset
 dataset = client.datasets.get_dataset(
-    dataset="reporter-test-3"
+    dataset="reporter-eval-scope-1"
     # version_id="RGF0YXNldFZlcnNpb246MQ=="  # or omit for latest version
 )
 

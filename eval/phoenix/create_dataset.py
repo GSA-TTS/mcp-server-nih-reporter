@@ -14,4 +14,5 @@ def upload_dataset(filepath, name):
     )
 
 if __name__ == "__main__":
-    upload_dataset("eval/phoenix/datasets/reporter-test-3.csv", "reporter-test-3")
+    # upload_dataset("eval/phoenix/datasets/reporter-test-3.csv", "reporter-test-3")
+    upload_dataset("eval/phoenix/datasets/reporter-eval-scope-1.csv", "reporter-eval-scope-1")
