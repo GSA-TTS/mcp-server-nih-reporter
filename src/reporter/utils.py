@@ -4,6 +4,11 @@ from reporter.models import SearchParams, IncludeField
 from fastmcp import Context
 import pandas as pd
 
+# NIH Reporter API pagination limit
+# The API cannot reliably paginate beyond offset ~15,000
+# Queries returning more results will fail silently after this threshold
+API_PAGINATION_LIMIT = 15000
+
 # Maps response field keys (after clean_json) to the IncludeField needed to fetch them.
 # org_name and org_state both come from the Organization include field.
 DIMENSION_FIELDS = {
@@ -145,11 +150,47 @@ async def get_initial_response(search_params:SearchParams, include_fields: list[
     return total_responses, all_results
 
 async def get_all_responses(search_params:SearchParams, include_fields: list[str], limit=500):
+    """
+    Fetch all results for a search query via pagination.
+    
+    Args:
+        search_params: Search parameters to query
+        include_fields: Fields to include in response
+        limit: Number of results per page (default 500, max 500)
+        
+    Returns:
+        dict: All results with 'meta' and 'results' keys
+        
+    Raises:
+        ValueError: If total results exceed API_PAGINATION_LIMIT (15,000)
+        
+    Note:
+        The NIH Reporter API has a pagination limit of ~15,000 results.
+        Queries returning more than this cannot be fully retrieved and will
+        raise an error. Refine search criteria to return fewer results.
+    """
 
     offset = 0 
     total_responses, all_results = await paged_query(search_params, include_fields, limit, offset)
 
     print(f"Total results: {total_responses}")
+    
+    # Validate against API pagination limit
+    if total_responses > API_PAGINATION_LIMIT:
+        raise ValueError(
+            f"Query returned {total_responses:,} results, which exceeds the API "
+            f"pagination limit of {API_PAGINATION_LIMIT:,}. The API cannot retrieve "
+            f"results beyond this threshold. Please refine your search criteria:\n"
+            f"  • Narrow the fiscal year range (e.g., 2020-2023 instead of 2000-2024)\n"
+            f"  • Specify agencies/institutes (e.g., agencies=['NCI'])\n"
+            f"  • Add organization filters (e.g., org_names=['Harvard'])\n"
+            f"  • Add PI name filters (e.g., pi_names=['Smith'])\n"
+            f"  • Use spending category filters for topical searches\n"
+            f"  • Add award type filters (e.g., award_types=['R01'])"
+        )
+    
+    # Log successful validation
+    print(f"✓ Result count {total_responses:,} is within API pagination limit")
     
 
     # Loop through remaining pages
@@ -159,7 +200,7 @@ async def get_all_responses(search_params:SearchParams, include_fields: list[str
         
         total_responses, all_results = await paged_query(search_params, include_fields, limit, offset, all_results)
     
-    print(f"Retrieved {len(all_results)} total results")
+    print(f"Retrieved {len(all_results['results'])} total results")
 
     return all_results
 

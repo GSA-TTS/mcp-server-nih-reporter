@@ -17,7 +17,12 @@ def register(mcp):
         Use this when you need exact totals (e.g., "total funding for cancer research").
 
         When searching for terms, default to searching spending categories before using a 
-        text search. Spending category labels are the official NIH designation for grants. 
+        text search. Spending category labels are the official NIH designation for grants.
+        
+        **IMPORTANT:** This tool fetches ALL matching projects. If your search returns
+        more than 15,000 results, the API pagination limit will be exceeded and an error
+        will be raised. Refine your search criteria (narrower year range, specific 
+        agencies, etc.) to return fewer results.
 
         Note: This may be slower for large result sets as it pages through all results.
 
@@ -34,6 +39,9 @@ def register(mcp):
             - funding_mechanism_distribution: Complete breakdown by funding mechanism
             - active_status_distribution: Complete breakdown of active vs inactive projects
             - award_amount_stats: Complete funding statistics (total, average, min, max)
+            
+        Raises:
+            ValueError: If search returns more than 15,000 results (API pagination limit)
         """
 
         # Get data with fields needed for distributions
