@@ -9,11 +9,8 @@ def get_q11_answer():
         activity_codes=[
             "R01"
         ],
-        organizations=[
-            "Harvard Medical School",
-        ],
         years=[
-            2022,
+            2023,
         ]
     )
 

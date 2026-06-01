@@ -149,36 +149,310 @@ async def get_initial_response(search_params:SearchParams, include_fields: list[
 
     return total_responses, all_results
 
-async def get_all_responses(search_params:SearchParams, include_fields: list[str], limit=500):
+async def get_result_count(search_params: SearchParams) -> int:
+    """
+    Get the total number of results for a query without fetching data.
+    Makes a lightweight API call with limit=1 to retrieve just the count.
+    
+    Args:
+        search_params: Search parameters
+        
+    Returns:
+        int: Total number of matching results
+    """
+    payload = {
+        "criteria": search_params.to_api_criteria(),
+        "offset": 0,
+        "limit": 1,
+        "include_fields": [IncludeField.PROJECT_NUM.value],
+        "sort_field": "project_start_date",
+        "sort_order": "desc"
+    }
+    
+    response = await search_nih_reporter(payload)
+    
+    if response is None:
+        raise Exception("NIH RePORTER API request failed - no response received")
+    
+    return response['meta']['total']
+
+def slice_query_by_years(search_params: SearchParams):
+    """
+    Split a SearchParams into separate queries, one per fiscal year.
+    
+    Args:
+        search_params: Original search parameters
+        
+    Returns:
+        List of SearchParams, each with a single fiscal year
+        
+    Example:
+        Input: SearchParams(years=[2020, 2021, 2022], agencies=["NCI"])
+        Output: [
+            SearchParams(years=[2020], agencies=["NCI"]),
+            SearchParams(years=[2021], agencies=["NCI"]),
+            SearchParams(years=[2022], agencies=["NCI"])
+        ]
+    """
+    if not search_params.years or len(search_params.years) <= 1:
+        return [search_params]
+    
+    sliced_params = []
+    for year in search_params.years:
+        # Create a copy with single year
+        params_dict = search_params.model_dump()
+        params_dict['years'] = [year]
+        sliced_params.append(SearchParams(**params_dict))
+    
+    return sliced_params
+
+def slice_query_by_ics(search_params: SearchParams):
+    """
+    Split a SearchParams into separate queries, one per NIH IC.
+    
+    Args:
+        search_params: Original search parameters
+        
+    Returns:
+        List of SearchParams, each with a single IC
+        
+    Notes:
+        - If agencies is None or [NIHAgency.NIH], splits across all 30 ICs
+        - If specific agencies specified, splits across those ICs only
+    """
+    from reporter.models.nih_agency import NIHAgency
+    
+    # Get list of all ICs from the enum
+    all_ics = list(NIHAgency)
+    
+    # Determine which ICs to iterate over
+    if not search_params.agencies or NIHAgency.NIH in search_params.agencies:
+        # Query all ICs
+        ics_to_query = all_ics
+    else:
+        # Use the specified ICs
+        ics_to_query = search_params.agencies
+    
+    if len(ics_to_query) <= 1:
+        return [search_params]
+    
+    sliced_params = []
+    for ic in ics_to_query:
+        # Create a copy with single IC
+        params_dict = search_params.model_dump()
+        params_dict['agencies'] = [ic]
+        sliced_params.append(SearchParams(**params_dict))
+    
+    return sliced_params
+
+def slice_query_by_year_and_ic(search_params: SearchParams):
+    """
+    Split a SearchParams into separate queries for each (year, IC) combination.
+    
+    Args:
+        search_params: Original search parameters
+        
+    Returns:
+        List of SearchParams, each with a single year and single IC
+        
+    Example:
+        Input: SearchParams(years=[2023, 2024], agencies=["NCI", "NHLBI"])
+        Output: [
+            SearchParams(years=[2023], agencies=["NCI"]),
+            SearchParams(years=[2023], agencies=["NHLBI"]),
+            SearchParams(years=[2024], agencies=["NCI"]),
+            SearchParams(years=[2024], agencies=["NHLBI"])
+        ]
+    """
+    # Get year slices
+    year_slices = slice_query_by_years(search_params)
+    
+    # For each year slice, further slice by IC
+    combined_slices = []
+    for year_slice in year_slices:
+        ic_slices = slice_query_by_ics(year_slice)
+        combined_slices.extend(ic_slices)
+    
+    return combined_slices
+
+async def get_max_slice_count(sliced_params) -> int:
+    """
+    Find the maximum result count among a list of sliced queries.
+    
+    Args:
+        sliced_params: List of SearchParams to check
+        
+    Returns:
+        int: Maximum result count across all slices
+        
+    Notes:
+        Makes lightweight count queries for each slice to validate
+        that slicing will successfully bring queries under the limit.
+    """
+    max_count = 0
+    
+    for i, params in enumerate(sliced_params, 1):
+        count = await get_result_count(params)
+        print(f"  Checking slice {i}/{len(sliced_params)}: {count:,} results", end="")
+        
+        if count > max_count:
+            max_count = count
+        
+        # Show status indicator
+        if count > API_PAGINATION_LIMIT:
+            print(" ✗ (exceeds limit)")
+        else:
+            print(" ✓")
+    
+    return max_count
+
+async def fetch_sliced_query(
+    search_params: SearchParams,
+    include_fields: list[str],
+    limit: int = 500
+) -> list:
+    """
+    Fetch all results for a single query (assumed to be under API limit).
+    This is the core pagination logic extracted from get_all_responses.
+    
+    Args:
+        search_params: Search parameters (should return < 15K results)
+        include_fields: Fields to include
+        limit: Page size (default 500)
+        
+    Returns:
+        list: All results for this query
+    """
+    offset = 0
+    total_responses, all_results = await paged_query(
+        search_params, include_fields, limit, offset
+    )
+    
+    # Loop through remaining pages
+    while offset + limit < total_responses:
+        offset += limit
+        print(f"    Fetching page {(offset // limit) + 1}/{(total_responses // limit) + 1}...")
+        total_responses, all_results = await paged_query(
+            search_params, include_fields, limit, offset, all_results
+        )
+    
+    return all_results['results']
+
+async def fetch_and_merge_sliced_queries(
+    sliced_params,
+    include_fields: list[str],
+    limit: int = 500
+) -> dict:
+    """
+    Fetch results for multiple SearchParams queries and merge them.
+    
+    Args:
+        sliced_params: List of SearchParams to query separately
+        include_fields: Fields to include in each query
+        limit: Page size for each query
+        
+    Returns:
+        dict: Merged results with 'meta' and 'results' keys
+        
+    Notes:
+        Executes queries sequentially to avoid rate limits.
+        Logs detailed progress for each sub-query.
+    """
+    all_results = []
+    total_fetched = 0
+    
+    print(f"\nFetching {len(sliced_params)} slices sequentially...")
+    
+    for i, params in enumerate(sliced_params, 1):
+        print(f"\n📊 Fetching slice {i}/{len(sliced_params)}...")
+        
+        # Fetch this slice
+        slice_results = await fetch_sliced_query(params, include_fields, limit)
+        
+        all_results.extend(slice_results)
+        total_fetched += len(slice_results)
+        
+        print(f"  ✓ Fetched slice {i}/{len(sliced_params)}: {len(slice_results):,} results (total so far: {total_fetched:,})")
+    
+    print(f"\n✓ Successfully retrieved {total_fetched:,} total results from {len(sliced_params)} slices")
+    
+    return {
+        'meta': {
+            'total': total_fetched,
+            'sliced': True,
+            'slice_count': len(sliced_params)
+        },
+        'results': all_results
+    }
+
+async def get_all_responses(
+    search_params: SearchParams, 
+    include_fields: list[str], 
+    limit: int = 500,
+    auto_slice: bool = True
+) -> dict:
     """
     Fetch all results for a search query via pagination.
+    
+    Automatically slices queries exceeding the API pagination limit into smaller
+    sub-queries based on fiscal years and/or NIH institutes/centers (ICs).
     
     Args:
         search_params: Search parameters to query
         include_fields: Fields to include in response
         limit: Number of results per page (default 500, max 500)
+        auto_slice: If True, automatically slice queries exceeding 15K results (default True)
         
     Returns:
         dict: All results with 'meta' and 'results' keys
         
     Raises:
-        ValueError: If total results exceed API_PAGINATION_LIMIT (15,000)
+        ValueError: If total results exceed API_PAGINATION_LIMIT and:
+            - auto_slice is False, OR
+            - Even after slicing, individual slices still exceed limit
         
-    Note:
+    Notes:
         The NIH Reporter API has a pagination limit of ~15,000 results.
-        Queries returning more than this cannot be fully retrieved and will
-        raise an error. Refine search criteria to return fewer results.
+        
+        When auto_slice is enabled (default), queries exceeding this limit are
+        automatically split using the following strategies (in order):
+        
+        1. Fiscal Year Slicing: Split by individual years if multiple years specified
+        2. IC Slicing: Split by NIH institute/center (all 30 ICs)
+        3. Combined Slicing: Split by (year × IC) combinations
+        
+        Sliced queries are executed sequentially and results are merged transparently.
+        This ensures complete data retrieval for broad queries, though it may take
+        longer for queries spanning many years and institutes.
     """
-
-    offset = 0 
-    total_responses, all_results = await paged_query(search_params, include_fields, limit, offset)
-
-    print(f"Total results: {total_responses}")
     
-    # Validate against API pagination limit
-    if total_responses > API_PAGINATION_LIMIT:
+    # Step 1: Get initial count
+    print("Checking total result count...")
+    total_count = await get_result_count(search_params)
+    print(f"Total results: {total_count:,}")
+    
+    # Step 2: If under limit, use original pagination logic
+    if total_count <= API_PAGINATION_LIMIT:
+        print(f"✓ Result count {total_count:,} is within API pagination limit")
+        
+        offset = 0 
+        total_responses, all_results = await paged_query(search_params, include_fields, limit, offset)
+        
+        # Loop through remaining pages
+        while offset + limit < total_responses:
+            offset += limit
+            print(f"Fetching results {offset} to {offset + limit}...")
+            total_responses, all_results = await paged_query(search_params, include_fields, limit, offset, all_results)
+        
+        print(f"Retrieved {len(all_results['results'])} total results")
+        return all_results
+    
+    # Step 3: Query exceeds limit - check if slicing is enabled
+    print(f"⚠️  Query exceeds API pagination limit of {API_PAGINATION_LIMIT:,}")
+    
+    if not auto_slice:
         raise ValueError(
-            f"Query returned {total_responses:,} results, which exceeds the API "
+            f"Query returned {total_count:,} results, which exceeds the API "
             f"pagination limit of {API_PAGINATION_LIMIT:,}. The API cannot retrieve "
             f"results beyond this threshold. Please refine your search criteria:\n"
             f"  • Narrow the fiscal year range (e.g., 2020-2023 instead of 2000-2024)\n"
@@ -186,21 +460,65 @@ async def get_all_responses(search_params:SearchParams, include_fields: list[str
             f"  • Add organization filters (e.g., org_names=['Harvard'])\n"
             f"  • Add PI name filters (e.g., pi_names=['Smith'])\n"
             f"  • Use spending category filters for topical searches\n"
-            f"  • Add award type filters (e.g., award_types=['R01'])"
+            f"  • Add award type filters (e.g., award_types=['R01'])\n\n"
+            f"Alternatively, enable auto_slice=True to automatically split the query."
         )
     
-    # Log successful validation
-    print(f"✓ Result count {total_responses:,} is within API pagination limit")
-    
-
-    # Loop through remaining pages
-    while offset + limit < total_responses:
-        offset += limit
-        print(f"Fetching results {offset} to {offset + limit}...")
+    # Step 4: Attempt Strategy 1 - Slice by Year
+    if search_params.years and len(search_params.years) > 1:
+        print(f"\n🔄 Strategy 1: Attempting year-based slicing...")
+        sliced_params = slice_query_by_years(search_params)
+        print(f"   Split into {len(sliced_params)} year-based slices")
         
-        total_responses, all_results = await paged_query(search_params, include_fields, limit, offset, all_results)
+        max_slice_count = await get_max_slice_count(sliced_params)
+        
+        if max_slice_count <= API_PAGINATION_LIMIT:
+            print(f"✓ Year-based slicing successful (largest slice: {max_slice_count:,})")
+            return await fetch_and_merge_sliced_queries(sliced_params, include_fields, limit)
+        else:
+            print(f"✗ Year-based slicing insufficient (largest slice: {max_slice_count:,} > {API_PAGINATION_LIMIT:,})")
     
-    print(f"Retrieved {len(all_results['results'])} total results")
+    # Step 5: Attempt Strategy 2 - Slice by IC
+    print(f"\n🔄 Strategy 2: Attempting IC-based slicing...")
+    sliced_params = slice_query_by_ics(search_params)
+    print(f"   Split into {len(sliced_params)} IC-based slices")
+    
+    max_slice_count = await get_max_slice_count(sliced_params)
+    
+    if max_slice_count <= API_PAGINATION_LIMIT:
+        print(f"✓ IC-based slicing successful (largest slice: {max_slice_count:,})")
+        return await fetch_and_merge_sliced_queries(sliced_params, include_fields, limit)
+    else:
+        print(f"✗ IC-based slicing insufficient (largest slice: {max_slice_count:,} > {API_PAGINATION_LIMIT:,})")
+    
+    # Step 6: Attempt Strategy 3 - Slice by Year × IC
+    print(f"\n🔄 Strategy 3: Attempting combined year+IC slicing...")
+    sliced_params = slice_query_by_year_and_ic(search_params)
+    print(f"   Split into {len(sliced_params)} combined (year×IC) slices")
+    
+    max_slice_count = await get_max_slice_count(sliced_params)
+    
+    if max_slice_count <= API_PAGINATION_LIMIT:
+        print(f"✓ Combined slicing successful (largest slice: {max_slice_count:,})")
+        return await fetch_and_merge_sliced_queries(sliced_params, include_fields, limit)
+    else:
+        print(f"✗ Combined slicing insufficient (largest slice: {max_slice_count:,} > {API_PAGINATION_LIMIT:,})")
+    
+    # Step 7: All strategies failed - raise detailed error
+    raise ValueError(
+        f"Query returned {total_count:,} results, exceeding the API "
+        f"pagination limit of {API_PAGINATION_LIMIT:,}. Even after attempting "
+        f"automatic slicing by year and IC, individual slices still exceed the limit.\n\n"
+        f"Largest slice had {max_slice_count:,} results (limit: {API_PAGINATION_LIMIT:,}).\n\n"
+        f"This indicates an extremely broad query. Please add additional filters:\n"
+        f"  • Add organization filters (e.g., org_names=['Harvard University'])\n"
+        f"  • Add PI name filters (e.g., pi_names=['Smith'])\n"
+        f"  • Use spending category filters for topical searches\n"
+        f"  • Add activity code filters (e.g., activity_codes=['R01'])\n"
+        f"  • Add award type filters (e.g., award_types=['1'])\n"
+        f"  • Narrow the fiscal year range further\n"
+        f"  • Specify fewer institutes/centers"
+    )
 
     return all_results
 

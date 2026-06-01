@@ -19,10 +19,11 @@ def register(mcp):
         When searching for terms, default to searching spending categories before using a 
         text search. Spending category labels are the official NIH designation for grants.
         
-        **IMPORTANT:** This tool fetches ALL matching projects. If your search returns
-        more than 15,000 results, the API pagination limit will be exceeded and an error
-        will be raised. Refine your search criteria (narrower year range, specific 
-        agencies, etc.) to return fewer results.
+        **Performance Note:** This tool fetches ALL matching projects. Queries with 
+        more than 15,000 results are automatically split into smaller sub-queries 
+        by fiscal year and/or NIH institute to ensure complete data retrieval. Very 
+        broad searches (e.g., all grants across 20+ years and all institutes) may 
+        result in dozens of sub-queries and take several minutes to complete.
 
         Note: This may be slower for large result sets as it pages through all results.
 
@@ -41,7 +42,9 @@ def register(mcp):
             - award_amount_stats: Complete funding statistics (total, average, min, max)
             
         Raises:
-            ValueError: If search returns more than 15,000 results (API pagination limit)
+            ValueError: If even after automatic slicing, individual query slices 
+            exceed 15,000 results (indicates extremely broad query requiring 
+            additional filters)
         """
 
         # Get data with fields needed for distributions
