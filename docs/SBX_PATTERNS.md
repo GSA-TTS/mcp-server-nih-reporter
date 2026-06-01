@@ -1,15 +1,23 @@
 # Docker Sandboxes Credential Injection Patterns
 
-Quick reference for injecting credentials into Docker Sandboxes (both Docker Desktop and standalone sbx CLI).
+Quick reference for injecting credentials into Docker Sandboxes using the standalone `sbx` CLI.
 
-## Two Ways to Use Docker Sandboxes
+> [!IMPORTANT]
+> The Docker Desktop-integrated `docker sandbox` commands are **deprecated**.
+> Use the standalone `sbx` CLI instead.
+> See [Docker's deprecation notice](https://docs.docker.com/reference/cli/docker/sandbox/).
 
-| Method | Install | Command Prefix | Credential Handling |
-|--------|---------|----------------|---------------------|
-| **Docker Desktop built-in** | None (Docker Desktop 4.58+) | `docker sandbox` | Shell config + restart Docker |
-| **Standalone sbx CLI** | Homebrew/Winget/apt | `sbx` | `-e` flags or `sbx secret set` |
+## Installing sbx CLI
 
-See [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/) for installation.
+```bash
+# macOS
+brew install docker/tap/sbx
+
+# Windows
+winget install Docker.sbx
+```
+
+See [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/) for full details.
 
 ## Network Policy Configuration (Required)
 
@@ -39,36 +47,33 @@ sbx policy allow network "api.gsa.usai.gov"
 
 | Method | Security | Use Case | Supported Services |
 |--------|----------|----------|-------------------|
-| **Shell Config** (Docker Desktop) | Medium - Docker reads from shell | All services | Any environment variable |
-| **SBX Proxy** (sbx CLI) | High - agent never sees token | Standard API endpoints | `anthropic`, `aws`, `cursor`, `github`, `google`, `groq`, `mistral`, `nebius`, `openai`, `xai` |
-| **Direct Injection** (`-e`) | Medium - token in container env | Custom endpoints | Any service (USAi, GitLab, etc.) |
+| **SBX Secret Store** (recommended) | High - stored in keychain, auto-injected | Any credential | Built-in services |
+| **SBX Secret Set-Custom** | High - stored in keychain | Custom endpoints (USAi, GitLab) | Any custom host |
+| **Direct Injection** (`-e`) | Medium - token in container env | One-off testing | Any service |
 
-**Rule of thumb:** 
-- Docker Desktop: Add to shell config, restart Docker
-- sbx CLI: Use proxy when available; use `-e` for custom endpoints
+**Rule of thumb:** Use `sbx secret set -g` for built-in services (github, anthropic, etc.); use `sbx secret set-custom` for custom endpoints like USAi.
 
 ---
 
 ## USAi
 
-USAi uses a custom endpoint (`api.gsa.usai.gov`) that the SBX proxy doesn't recognize.
-
-### Docker Desktop
+USAi (`api.gsa.usai.gov`) is **not a built-in sbx service**. You must use `sbx secret set-custom`:
 
 ```bash
-# Add to ~/.bashrc or ~/.zshrc
-export USAI_API_KEY="your-key-here"
+# Store securely in system keychain (required for USAi)
+sbx secret set-custom -g --host api.gsa.usai.gov --env USAI_API_KEY --value "$USAI_API_KEY"
 
-# Source and COMPLETELY restart Docker Desktop (Quit → Reopen)
-source ~/.zshrc
-# Then restart Docker Desktop from menu/taskbar
+# Recreate sandbox to pick up new secret
+sbx rm SANDBOX_NAME 2>/dev/null; sbx create --name SANDBOX_NAME opencode .
 
-# Run
-docker sandbox run SANDBOX_NAME
+# Run - secrets auto-injected
+sbx run SANDBOX_NAME
 ```
 
-### Standalone sbx CLI
+> [!IMPORTANT]
+> After setting or changing a custom secret, you must **delete and recreate** the sandbox.
 
+Or for one-off testing:
 ```bash
 # Set on host
 export USAI_API_KEY="your-key-here"
@@ -81,19 +86,9 @@ sbx exec -it -e USAI_API_KEY="$USAI_API_KEY" -w $(pwd) SANDBOX_NAME opencode
 
 ## GitHub
 
-### Docker Desktop
+### Method 1: SBX Secret Store (Recommended)
 
-```bash
-# Add to ~/.bashrc or ~/.zshrc
-export GH_TOKEN="$(gh auth token)"
-# Or: export GITHUB_TOKEN="your-pat"
-
-# Source and restart Docker Desktop
-```
-
-### Standalone sbx CLI
-
-#### Method 1: SBX Proxy (Recommended)
+GitHub is a **built-in service**, so use the simpler syntax:
 
 ```bash
 # One-time setup - pipe from gh cli (avoids shell history)
@@ -103,7 +98,7 @@ gh auth token | sbx secret set -g github
 sbx secret ls
 
 # Run - proxy handles auth automatically
-sbx exec -it -e USAI_API_KEY="$USAI_API_KEY" -w $(pwd) SANDBOX_NAME opencode
+sbx run SANDBOX_NAME
 ```
 
 #### Method 2: Direct Injection
@@ -127,27 +122,26 @@ sbx exec -e GH_TOKEN="$(gh auth token)" SANDBOX_NAME sh -c 'curl -s -H "Authoriz
 
 ---
 
-## GitLab (Direct Injection Required)
+## GitLab (Custom Endpoint)
 
-GitLab is NOT a built-in service for either method.
+GitLab (especially self-hosted instances) requires `sbx secret set-custom`:
 
-### Docker Desktop
+### Store in sbx secret (recommended)
 
 ```bash
-# Add to ~/.bashrc or ~/.zshrc
-export GITLAB_TOKEN="your-gitlab-token"
-export GITLAB_HOST="workshop.cloud.gov"  # for self-hosted
+# Store GitLab token for self-hosted instance
+sbx secret set-custom -g --host workshop.cloud.gov --env GITLAB_TOKEN --value "$GITLAB_TOKEN"
 
-# Source and restart Docker Desktop
+# Recreate sandbox to pick up new secret
+sbx rm SANDBOX_NAME 2>/dev/null; sbx create --name SANDBOX_NAME opencode .
 ```
 
-### Standalone sbx CLI
+### Direct injection (one-off)
 
 #### gitlab.com
 
 ```bash
 sbx exec -it \
-  -e USAI_API_KEY="$USAI_API_KEY" \
   -e GITLAB_TOKEN="your-gitlab-token" \
   -w $(pwd) SANDBOX_NAME opencode
 ```
@@ -156,7 +150,6 @@ sbx exec -it \
 
 ```bash
 sbx exec -it \
-  -e USAI_API_KEY="$USAI_API_KEY" \
   -e GITLAB_TOKEN="$(glab config get --host workshop.cloud.gov token)" \
   -e GITLAB_HOST="workshop.cloud.gov" \
   -w $(pwd) SANDBOX_NAME opencode
@@ -173,52 +166,42 @@ sbx exec -e GITLAB_TOKEN="$GITLAB_TOKEN" -e GITLAB_HOST="workshop.cloud.gov" SAN
 
 ## Combined: All Services
 
-### Docker Desktop
+### sbx CLI (Recommended)
 
-Add all variables to shell config:
-```bash
-# ~/.bashrc or ~/.zshrc
-export USAI_API_KEY="your-usai-key"
-export GH_TOKEN="$(gh auth token)"
-export GITLAB_TOKEN="your-gitlab-token"
-export GITLAB_HOST="workshop.cloud.gov"
-```
-
-Then restart Docker Desktop and run: `docker sandbox run SANDBOX_NAME`
-
-### Standalone sbx CLI
-
-For agents needing USAi + GitHub + GitLab:
+For agents needing USAi + GitHub + GitLab, first set up all secrets:
 
 ```bash
-# Assumes: gh logged in, glab logged in, USAI_API_KEY set, github secret in SBX
+# One-time setup
+sbx secret set-custom -g --host api.gsa.usai.gov --env USAI_API_KEY --value "$USAI_API_KEY"
+sbx secret set-custom -g --host workshop.cloud.gov --env GITLAB_TOKEN --value "$GITLAB_TOKEN"
+gh auth token | sbx secret set -g github
 
-sbx exec -it \
-  -e USAI_API_KEY="$USAI_API_KEY" \
-  -e GITLAB_TOKEN="$(glab config get --host workshop.cloud.gov token)" \
-  -e GITLAB_HOST="workshop.cloud.gov" \
-  -w $(pwd) SANDBOX_NAME opencode
+# Recreate sandbox
+sbx rm SANDBOX_NAME 2>/dev/null; sbx create --name SANDBOX_NAME opencode .
+
+# Run - all secrets auto-injected
+sbx run SANDBOX_NAME
 ```
-
-> **Note:** If you've set GitHub via `sbx secret set -g github`, omit `-e GH_TOKEN` - the proxy handles it.
 
 ---
 
 ## Quick Reference
 
-| Provider | Docker Desktop | sbx CLI (Proxy) | sbx CLI (Direct) |
-|----------|----------------|-----------------|------------------|
-| USAi | `USAI_API_KEY` in shell config | N/A | `-e USAI_API_KEY="$USAI_API_KEY"` |
-| GitHub | `GH_TOKEN` in shell config | `sbx secret set -g github` | `-e GH_TOKEN="$(gh auth token)"` |
-| GitLab.com | `GITLAB_TOKEN` in shell config | N/A | `-e GITLAB_TOKEN="..."` |
-| GitLab (self-hosted) | `GITLAB_TOKEN` + `GITLAB_HOST` | N/A | `-e GITLAB_TOKEN="..." -e GITLAB_HOST="..."` |
+| Provider | Command | Notes |
+|----------|---------|-------|
+| USAi | `sbx secret set-custom -g --host api.gsa.usai.gov --env USAI_API_KEY --value "$USAI_API_KEY"` | Custom endpoint |
+| GitHub | `gh auth token \| sbx secret set -g github` | Built-in service |
+| GitLab (self-hosted) | `sbx secret set-custom -g --host workshop.cloud.gov --env GITLAB_TOKEN --value "$GITLAB_TOKEN"` | Custom endpoint |
+
+> [!IMPORTANT]
+> After setting custom secrets, **delete and recreate** the sandbox for changes to take effect.
 
 ---
 
 ## Security Notes
 
-1. **Docker Desktop:** Restart required after changing shell config
-2. **Prefer SBX proxy when available** (sbx CLI) - more secure, agent never sees token
+1. **Use `sbx secret set-custom` for custom endpoints** like USAi (not `sbx secret set -g VARNAME`)
+2. **Use `sbx secret set -g SERVICE` for built-in services** like github, anthropic
 3. **Pipe tokens from CLI tools** - avoids shell history (`gh auth token | sbx secret set -g github`)
 4. **Scope tokens minimally** - only grant permissions the agent needs
 5. **Tokens exist only in memory** - never written to disk inside container
