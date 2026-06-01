@@ -15,7 +15,10 @@ dataset = client.datasets.get_dataset(
     # version_id="RGF0YXNldFZlcnNpb246MQ=="  # or omit for latest version
 )
 
-agent = NIHReporterAgent(project_name="nih-reporter-experiments")
+agent = NIHReporterAgent(
+    project_name="nih-reporter-experiments",
+    phoenix_endpoint="http://localhost:4317",
+    prompt_version="v3")
 asyncio.run(agent.initialize())
 
 # Define your task using the agent

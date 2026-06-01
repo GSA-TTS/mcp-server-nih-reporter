@@ -18,14 +18,39 @@ base_url = os.getenv("USAI_BASE_URL")
 class NIHReporterAgent:
     """Reusable NIH Reporter Agent for Phoenix experiments"""
     
-    def __init__(self, project_name="nih-reporter-agent", phoenix_endpoint="http://localhost:4317"):
+    def __init__(self, project_name="nih-reporter-agent", phoenix_endpoint="http://localhost:4317", prompt_version="v1"):
         self.api_key = api_key
         self.base_url = base_url
         self.project_name = project_name
         self.phoenix_endpoint = phoenix_endpoint
+        self.prompt_version = prompt_version
         self.agent = None
         self.client = None
         self._initialized = False
+    
+    def _load_system_prompt(self) -> str:
+        """Load the system prompt from file
+        
+        Returns:
+            str: The system prompt content
+            
+        Raises:
+            FileNotFoundError: If the prompt file doesn't exist
+        """
+        prompt_path = os.path.join(
+            os.path.dirname(__file__),
+            "prompts",
+            f"system_prompt_{self.prompt_version}.txt"
+        )
+        
+        if not os.path.exists(prompt_path):
+            raise FileNotFoundError(
+                f"System prompt file not found: {prompt_path}\n"
+                f"Please ensure system_prompt_{self.prompt_version}.txt exists in the prompts/ directory."
+            )
+        
+        with open(prompt_path, "r") as f:
+            return f.read().strip()
         
     async def initialize(self):
         """Initialize the agent with Phoenix instrumentation"""
@@ -70,16 +95,7 @@ class NIHReporterAgent:
         self.agent = create_agent(
             model=model,
             tools=tools,
-            system_prompt="""You are an expert NIH research funding analyst with access to the NIH Reporter database.
-
-Your role is to:
-- Provide accurate information about NIH grants, projects, and funding
-- Use the available tools to query the NIH Reporter API
-- Present data in a clear, structured format
-- Cite specific grant numbers and funding amounts when relevant
-- Help users understand NIH funding trends and patterns
-
-Always verify your data using the tools before responding."""
+            system_prompt=self._load_system_prompt()
         )
         
         self._initialized = True
