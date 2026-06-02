@@ -1,0 +1,45 @@
+# Dataset registry for Phoenix evaluation experiments
+# Each dataset maps to a CSV file with test questions and expected responses
+
+datasets:
+  reporter-eval-0:
+    csv_path: datasets/reporter-eval-0/examples/reporter-eval-0.csv
+    input_keys:
+      - query
+    output_keys:
+      - responses
+    description: "Mixed evaluation dataset with 11 questions (basic + scope)"
+    
+  reporter-test-2:
+    csv_path: datasets/reporter-test-2/examples/reporter-test-2.csv
+    input_keys:
+      - query
+    output_keys:
+      - responses
+    description: "Basic functionality test with 4 questions"
+    
+  reporter-eval-test-3:
+    csv_path: datasets/reporter-eval-test-3/examples/reporter-test-3.csv
+    input_keys:
+      - query
+    output_keys:
+      - responses
+    description: "Basic + out-of-scope test with 4 questions"
+    has_groundtruth: true
+    groundtruth_path: datasets/reporter-eval-test-3/groundtruth
+    
+  reporter-eval-scope-1:
+    csv_path: datasets/reporter-eval-scope/examples/reporter-eval-scope-1.csv
+    input_keys:
+      - query
+    output_keys:
+      - responses
+    description: "Scope boundary evaluation with 11 questions"
+    
+  reporter-eval-scope-0:
+    csv_path: datasets/reporter-eval-scope/examples/reporter-eval-scope-0.csv
+    input_keys:
+      - query
+    output_keys:
+      - rationale
+    description: "Comprehensive dataset with 71 questions and rationales"
