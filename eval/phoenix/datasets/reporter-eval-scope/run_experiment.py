@@ -14,7 +14,7 @@ from judges import match_expected_response, check_answer_scope
 
 
 def main(
-    dataset_name: str = "reporter-test-2",
+    dataset_name: str = "reporter-eval-scope",
     dataset_version_id: str = None,
     system_prompt_version: str = "v3",
     project_name: str = "nih-reporter-experiments",
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset-name",
         type=str,
-        default="reporter-test-2",
+        default="reporter-eval-scope",
         help="Name of the Phoenix dataset to use"
     )
     
