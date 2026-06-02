@@ -120,6 +120,32 @@ class NIHReporterAgent:
         # Extract the final message content
         return response["messages"][-1].content
     
+    def create_experiment_task(self):
+        """
+        Create a task function for Phoenix experiments.
+        
+        This returns a synchronous function that Phoenix can use as a task,
+        which internally handles the async agent execution.
+        
+        Returns:
+            callable: A task function that takes an example and returns a response
+            
+        Example:
+            >>> agent = NIHReporterAgent()
+            >>> await agent.initialize()
+            >>> task = agent.create_experiment_task()
+            >>> result = task(example)  # Phoenix will call this
+        """
+        def task(example):
+            """Run each query through the NIH Reporter agent"""
+            query = example.input['query']
+            
+            # Run the agent synchronously (Phoenix experiments expect sync functions)
+            response = asyncio.run(self.run(query))
+            return response
+        
+        return task
+    
     async def cleanup(self):
         """Cleanup resources"""
         if self.client:
