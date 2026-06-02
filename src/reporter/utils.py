@@ -224,6 +224,10 @@ def slice_query_by_ics(search_params: SearchParams):
     
     # Get list of all ICs from the enum
     all_ics = list(NIHAgency)
+
+    # eliminate NIH for purposes of slicing, since it represents all ICs
+    if NIHAgency.NIH in all_ics:
+        all_ics.remove(NIHAgency.NIH)
     
     # Determine which ICs to iterate over
     if not search_params.agencies or NIHAgency.NIH in search_params.agencies:
@@ -749,3 +753,21 @@ def get_project_distributions_df(all_results):
     df = pd.DataFrame(records)
     
     return df
+
+if __name__ == "__main__":
+    # from reporter.models import SearchParams, IncludeField
+    
+    async def main():
+        search_params = SearchParams(
+            years=[2023],
+            agencies=["NIH"],
+            organizations=["Harvard Medical School"],
+        )
+        include_fields = ["ProjectNum","FiscalYear","AwardAmount","Organization","AgencyIcAdmin","ActivityCode"]
+        
+        all_results = await get_all_responses(search_params, include_fields)
+        df = get_project_distributions_df(all_results)
+        
+        print(df.head())
+    
+    asyncio.run(main())
