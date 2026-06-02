@@ -6,9 +6,9 @@ This script replaces all the individual run_experiment.py files in each dataset 
 Dataset configurations are defined in datasets.yaml for validation.
 
 Usage:
-    python run_experiment.py --dataset-name reporter-test-2
-    python run_experiment.py --dataset-name reporter-eval-0 --system-prompt-version v2
-    python run_experiment.py --dataset-name reporter-eval-scope-1 --experiment-description "Testing new prompt"
+    uv run eval/phoenix/run_experiment.py --dataset-name reporter-test-2
+    uv run eval/phoenix/run_experiment.py --dataset-name reporter-eval-0 --system-prompt-version v2
+    uv run eval/phoenix/run_experiment.py --dataset-name reporter-eval-scope-1 --experiment-description "Testing new prompt"
 """
 
 from phoenix.client import Client
@@ -18,11 +18,7 @@ import sys
 import yaml
 from pathlib import Path
 
-# Add the phoenix directory to Python path
-phoenix_dir = Path(__file__).resolve().parent
-sys.path.insert(0, str(phoenix_dir))
-
-# Import agent and judges 
+# Import agent and judges
 from agent import NIHReporterAgent
 from judges import match_expected_response, check_answer_scope
 
