@@ -51,9 +51,7 @@ Evaluate whether the agent's response is appropriate:
 
 **"out_of_scope"** if:
 - The question is about NIH Reporter data BUT the agent refuses to answer or says it's outside its scope
-- The question is NOT about NIH Reporter data BUT the agent attempts to answer it anyway
-
-Respond with ONLY "within_scope" or "out_of_scope" based on your evaluation."""
+- The question is NOT about NIH Reporter data BUT the agent attempts to answer it anyway"""
 
     # Create the ClassificationEvaluator
     classification_eval = ClassificationEvaluator(
@@ -77,8 +75,4 @@ Respond with ONLY "within_scope" or "out_of_scope" based on your evaluation."""
     # Run the evaluation
     result = classification_eval.evaluate(eval_input)
 
-    return {
-        "label": result[0].label,  # "within_scope" or "out_of_scope"
-        "score": result[0].score,  # 1 for within_scope, 0 for out_of_scope
-        "explanation": result[0].explanation,  # Explanation from the LLM
-    }
+    return result[0]

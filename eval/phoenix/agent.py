@@ -72,10 +72,14 @@ class NIHReporterAgent:
         print("Initializing MCP client...")
         self.client = MultiServerMCPClient(
             {
+                # "reporter_server": {
+                #     "transport": "stdio",
+                #     "command": "uv",
+                #     "args": ["run", "src/reporter/app.py"],
+                # },
                 "reporter_server": {
-                    "transport": "stdio",
-                    "command": "uv",
-                    "args": ["run", "src/reporter/app.py"],
+                    "transport": "http",
+                    "url": "http://localhost:8000/mcp",
                 }
             }
         )

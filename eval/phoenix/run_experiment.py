@@ -15,10 +15,12 @@ dataset = client.datasets.get_dataset(
     # version_id="RGF0YXNldFZlcnNpb246MQ=="  # or omit for latest version
 )
 
+system_prompt_version = "v3"
+
 agent = NIHReporterAgent(
     project_name="nih-reporter-experiments",
     phoenix_endpoint="http://localhost:4317",
-    prompt_version="v3")
+    prompt_version=system_prompt_version)
 asyncio.run(agent.initialize())
 
 # Define your task using the agent
@@ -38,4 +40,6 @@ experiment = client.experiments.run_experiment(
     dataset=dataset,
     task=my_task,
     evaluators=evaluators,
+    experiment_description="Return score object instead of custom json list from evaluators.",
+    experiment_metadata={"system_prompt_version": system_prompt_version}
 )

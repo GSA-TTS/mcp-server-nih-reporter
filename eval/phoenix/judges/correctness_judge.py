@@ -72,8 +72,4 @@ Respond with ONLY "correct" or "incorrect" based on your evaluation."""
     # Run the evaluation
     result = classification_eval.evaluate(eval_input)
 
-    return {
-        "label": result[0].label,  # "correct" or "incorrect"
-        "score": result[0].score,  # 1 for correct, 0
-        "explanation": result[0].explanation,  # Explanation from the LLM
-    }
+    return result[0]
