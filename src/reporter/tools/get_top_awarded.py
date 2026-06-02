@@ -18,6 +18,12 @@ def register(mcp):
         Use this to answer questions like "who are the top-funded PIs in cancer research?"
         or "which organizations receive the most NIH funding for diabetes grants?".
         Fetches all matching projects, so results are complete and accurate.
+        
+        **Performance Note:** This tool fetches ALL matching projects. Queries with 
+        more than 15,000 results are automatically split into smaller sub-queries 
+        by fiscal year and/or NIH institute to ensure complete data retrieval. Very 
+        broad searches (e.g., all grants across 20+ years and all institutes) may 
+        result in dozens of sub-queries and take several minutes to complete.
 
         Args:
             search_params (SearchParams): Search parameters to scope the portfolio.
@@ -35,6 +41,14 @@ def register(mcp):
                 - name: Entity identifier
                 - total_funding: Sum of award amounts across all grants
                 - project_count: Number of grants attributed to this entity
+                
+            Note: For queries exceeding 15,000 results, data is automatically
+            fetched via multiple sub-queries and aggregated.
+                
+        Raises:
+            ValueError: If even after automatic slicing, individual query slices 
+            exceed 15,000 results (indicates extremely broad query requiring 
+            additional filters)
         """
 
         valid = ["pi"] + [k for k in DIMENSION_FIELDS if k != "fiscal_year"]
