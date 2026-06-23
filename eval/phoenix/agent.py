@@ -14,11 +14,12 @@ load_dotenv()
 
 api_key = os.getenv("USAI_API_KEY")
 base_url = os.getenv("USAI_BASE_URL")
+agent_model = os.getenv("AGENT_MODEL")
 
 class NIHReporterAgent:
     """Reusable NIH Reporter Agent for Phoenix experiments"""
     
-    def __init__(self, project_name="nih-reporter-agent", phoenix_endpoint="http://localhost:4317", prompt_version="v1"):
+    def __init__(self, project_name="nih-reporter-agent", phoenix_endpoint="http://localhost:4317", prompt_version="v4"):
         self.api_key = api_key
         self.base_url = base_url
         self.project_name = project_name
@@ -72,15 +73,15 @@ class NIHReporterAgent:
         print("Initializing MCP client...")
         self.client = MultiServerMCPClient(
             {
-                # "reporter_server": {
-                #     "transport": "stdio",
-                #     "command": "uv",
-                #     "args": ["run", "src/reporter/app.py"],
-                # },
                 "reporter_server": {
-                    "transport": "http",
-                    "url": "http://localhost:8000/mcp",
-                }
+                    "transport": "stdio",
+                    "command": "uv",
+                    "args": ["run", "src/reporter/app.py"],
+                },
+                # "reporter_server": {
+                #     "transport": "http",
+                #     "url": "http://localhost:8000/mcp",
+                # }
             }
         )
 
@@ -89,7 +90,7 @@ class NIHReporterAgent:
 
         print("Initializing model...")
         model = ChatOpenAI(
-            model="claude_4_5_sonnet",
+            model=agent_model,
             base_url=self.base_url + "/api/v1",
             api_key=self.api_key,
             temperature=0,
@@ -159,7 +160,7 @@ async def main():
     await agent.initialize()
     
     print("Invoking agent...")
-    response = await agent.run("How many R01s did NIMHD award in 2024?")
+    response = await agent.run("how many NIH grants were a noncompeting change of IC in 2024?")
     
     print("\n" + "="*80)
     print("RESPONSE:")

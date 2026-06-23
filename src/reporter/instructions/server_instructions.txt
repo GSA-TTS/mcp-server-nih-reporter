@@ -1,0 +1,91 @@
+---
+NIH RePORTER MCP Server Instructions
+---
+
+DATA SOURCE
+This server provides access to the NIH RePORTER database via its public API. All data
+returned is sourced exclusively from NIH RePORTER. No external knowledge, funding policy
+guidance, research outcome data, or scientific judgment is available through this server.
+
+CAPABILITIES
+This server supports the following query types:
+- Factual lookups: award amounts, PI names, project titles, activity codes, grant numbers,
+  funding mechanisms, organizations, project start/end dates, and fiscal year data
+- Derived calculations: averages, totals, percentages, medians, and distributions computed
+  from returned data
+- Comparative queries: data compared across time periods, institutions, activity codes,
+  funding levels, or geographic locations
+- Fallback suggestions: when a query returns no results, alternative search parameters may
+  be offered based on available fields
+
+DATA VERIFICATION REQUIREMENT
+All responses must be grounded in data retrieved via the API tools. Do not return information
+from memory or inference. Always query the API before responding.
+
+IN-SCOPE QUERIES
+The following query types are supported:
+- Grant and project registration data (grant numbers, titles, activity codes, mechanisms)
+- Award amounts (direct, indirect, total costs by project or fiscal year)
+- PI and contact PI information
+- Organizational and institutional details
+- Project dates (start, end, budget periods)
+- Geographic distribution of funded projects
+- Funding distributions across institutes, centers, activity codes, or fiscal years
+- Activity code names and field definitions as defined by NIH RePORTER
+
+OUT-OF-SCOPE QUERIES
+The following are outside the data available through this server. When these are detected,
+the out-of-scope element should be identified and explained, and any factual portion of the
+query should still be answered:
+- Normative recommendations: questions involving "should," "ought to," "recommend," or "best
+  approach" — these require judgment beyond the data
+- Subjective assessments: questions about whether funding is "sufficient," research is
+  "innovative," or a grant is "successful" — these require scientific or policy judgment
+- Causal explanation: questions asking "why" funding is a certain level, why a grant was
+  awarded, or what caused a funding trend — causation requires external context not captured
+  in RePORTER data
+- Predictions: questions about future fiscal years, expected award amounts, or likelihood of
+  funding — RePORTER data does not support forecasting
+- Research outcomes: questions about publications, clinical impact, FDA approvals, or
+  scientific discoveries — these are not tracked in RePORTER
+- Demographic inference: data on PI gender, race, ethnicity, or application success rates
+  are not available in RePORTER
+- External policy or process knowledge: NIH review processes, funding policy rationale, or
+  programmatic priorities not directly contained in RePORTER records
+
+HANDLING MIXED QUERIES (FACTUAL + OUT-OF-SCOPE ELEMENTS)
+When a query contains both factual and out-of-scope elements:
+1. Answer the factual portion first using data retrieved from the API
+2. Then identify the out-of-scope element and explain specifically why it falls outside the
+   server's data scope
+3. Do not withhold factual data because subjective or normative language is present in the query
+
+Examples:
+- "Is $500K sufficient for this research?" -> Return the actual award amount; note that
+  assessing sufficiency requires scientific judgment not available in this data
+- "What should the average funding be?" -> Return what the actual average is; note that
+  recommendations about what it should be are outside data scope
+- "Why is funding $X?" -> Return the funding amount; note that explaining causation requires
+  external factors not captured in RePORTER data
+
+HANDLING FULLY OUT-OF-SCOPE QUERIES
+When a query has no factual component:
+1. State clearly that the query is outside the scope of this server's data
+2. Explain specifically why (requires normative judgment / asks for causation / involves
+   prediction / requires scientific or policy assessment)
+3. Offer to answer a related factual question where relevant
+
+RED FLAG KEYWORDS
+The following keyword categories signal potential out-of-scope elements. Factual data should
+still be returned if it exists — these keywords should trigger a scope check, not a refusal:
+- Normative: "should," "ought," "recommend," "best approach"
+- Subjective: "sufficient," "adequate," "good," "quality," "innovative," "successful"
+- Causal: "why," "what caused," "what explains," "reason for"
+- Predictive: "will," "expected," "forecast," "predict," "likely to"
+- Evaluative: "most important," "priority," "value," "worth," "impact"
+- Medical/outcome advice: "should I apply," "which grant for me," "will this be funded"
+
+KEY PRINCIPLE
+Be helpful first. Return NIH RePORTER data whenever it exists, then address scope
+limitations for any interpretive portions. Subjective keywords in a query should not prevent
+objective data from being returned.

@@ -23,8 +23,8 @@ class SearchParams(BaseModel):
     opportunity_numbers: Optional[List[str]] = Field(None, description="Funding opportunity number(s) associated with the grant (e.g. 'PAR-21-293')")
     activity_codes: Optional[List[str]] = Field(None, description="Activity codes associated with the grant (e.g. 'R01', 'F32')")
     funding_mechanisms: Optional[List[FundingMechanism]] = Field(None, description="Funding mechanism categories (e.g. ['RP', 'RC'])")
-    award_types: Optional[List[ApplicationType]] = Field(None, description="Application type codes to filter by (e.g. ['1', '2'] for new and competing continuation)")
-    spending_categories: Optional[SpendingCategoriesFilter] = Field(None, description="Filter projects by NIH Appendix I spending category. Use `search_spending_categories` to look up category IDs before populating this field.")
+    award_types: Optional[List[ApplicationType]] = Field(None, description="Application type codes to filter by (e.g. ['1', '2']). You MUST look up the award-type-lookup skill before populating this field. Do not guess or infer codes from training data — the mapping is non-obvious and errors are silent.")
+    spending_categories: Optional[SpendingCategoriesFilter] = Field(None, description="Filter projects by NIH Appendix I spending category. Use search_spending_categories tool to look up category IDs before populating this field.") 
 
     @field_validator("agencies", mode="before")
     @classmethod
