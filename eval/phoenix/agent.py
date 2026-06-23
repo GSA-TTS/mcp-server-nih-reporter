@@ -19,7 +19,7 @@ agent_model = os.getenv("AGENT_MODEL")
 class NIHReporterAgent:
     """Reusable NIH Reporter Agent for Phoenix experiments"""
     
-    def __init__(self, project_name="nih-reporter-agent", phoenix_endpoint="http://localhost:4317", prompt_version="v1"):
+    def __init__(self, project_name="nih-reporter-agent", phoenix_endpoint="http://localhost:4317", prompt_version="v4"):
         self.api_key = api_key
         self.base_url = base_url
         self.project_name = project_name

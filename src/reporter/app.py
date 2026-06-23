@@ -1,16 +1,22 @@
 import os
 from fastmcp import FastMCP
-# from fastmcp.server.transforms.search import BM25SearchTransform
+
+from reporter.instructions import load_server_instructions
+from fastmcp.server.transforms.search import BM25SearchTransform
+
 from reporter.tools import register_tools
 from reporter.prompts import register_prompts
 from reporter.routes import register_routes
 
 # Initialize FastMCP server
-mcp = FastMCP("reporter")
+mcp = FastMCP(
+    "reporter",
+    instructions=load_server_instructions(),
+    transforms=[BM25SearchTransform()],
+)
 
 # Register custom tools
 register_tools(mcp)
-# mcp.add_transform(BM25SearchTransform())
 
 # Register custom prompts
 register_prompts(mcp)
