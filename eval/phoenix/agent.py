@@ -14,6 +14,7 @@ load_dotenv()
 
 api_key = os.getenv("USAI_API_KEY")
 base_url = os.getenv("USAI_BASE_URL")
+agent_model = os.getenv("AGENT_MODEL")
 
 class NIHReporterAgent:
     """Reusable NIH Reporter Agent for Phoenix experiments"""
@@ -72,15 +73,15 @@ class NIHReporterAgent:
         print("Initializing MCP client...")
         self.client = MultiServerMCPClient(
             {
-                # "reporter_server": {
-                #     "transport": "stdio",
-                #     "command": "uv",
-                #     "args": ["run", "src/reporter/app.py"],
-                # },
                 "reporter_server": {
-                    "transport": "http",
-                    "url": "http://localhost:8000/mcp",
-                }
+                    "transport": "stdio",
+                    "command": "uv",
+                    "args": ["run", "src/reporter/app.py"],
+                },
+                # "reporter_server": {
+                #     "transport": "http",
+                #     "url": "http://localhost:8000/mcp",
+                # }
             }
         )
 
@@ -89,7 +90,7 @@ class NIHReporterAgent:
 
         print("Initializing model...")
         model = ChatOpenAI(
-            model="claude_4_5_sonnet",
+            model=agent_model,
             base_url=self.base_url + "/api/v1",
             api_key=self.api_key,
             temperature=0,
