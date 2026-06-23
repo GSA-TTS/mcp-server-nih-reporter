@@ -1,8 +1,11 @@
 import os
+from pathlib import Path 
 from fastmcp import FastMCP
 
 from reporter.instructions import load_server_instructions
 from fastmcp.server.transforms.search import BM25SearchTransform
+from fastmcp.server.providers.skills import SkillsDirectoryProvider
+from fastmcp.server.transforms import ResourcesAsTools
 
 from reporter.tools import register_tools
 from reporter.prompts import register_prompts
@@ -17,6 +20,12 @@ mcp = FastMCP(
 
 # Register custom tools
 register_tools(mcp)
+
+# Register skills (field/value reference) as MCP resources.
+# Resolve relative to this package so it works from any CWD and when installed.
+_SKILLS_ROOT = Path(__file__).parent / "skills"
+mcp.add_provider(SkillsDirectoryProvider(roots=_SKILLS_ROOT, reload=False))
+mcp.add_transform(ResourcesAsTools(mcp))
 
 # Register custom prompts
 register_prompts(mcp)

@@ -160,7 +160,7 @@ async def main():
     await agent.initialize()
     
     print("Invoking agent...")
-    response = await agent.run("How many R01s did NIMHD award in 2024?")
+    response = await agent.run("how many NIH grants were a noncompeting change of IC in 2024?")
     
     print("\n" + "="*80)
     print("RESPONSE:")
