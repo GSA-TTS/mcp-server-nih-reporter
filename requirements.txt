@@ -159,7 +159,7 @@ langchain-protocol==0.0.15
     # via langchain-core
 langgraph==1.2.0
     # via langchain
-langgraph-checkpoint==4.1.0
+langgraph-checkpoint==4.1.1
     # via
     #   langgraph
     #   langgraph-prebuilt
