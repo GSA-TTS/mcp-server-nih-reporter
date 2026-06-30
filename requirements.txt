@@ -125,7 +125,7 @@ jiter==0.14.0
     # via
     #   anthropic
     #   openai
-joserfc==1.6.5
+joserfc==1.6.7
     # via authlib
 jsonpatch==1.33
     # via langchain-core
