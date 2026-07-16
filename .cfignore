@@ -1,0 +1,44 @@
+# Virtualenv — buildpack rebuilds from requirements.txt (largest item, ~611M)
+.venv/
+
+# Version control
+.git/
+.gitignore
+
+# Python caches / build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+src/reporter.egg-info/
+
+# Lockfile (unused by python buildpack)
+uv.lock
+
+# Dev / testing / non-runtime dirs
+eval/
+tests/
+experimental/
+scripts/
+agent/
+.agents/
+
+# Other-platform deploy configs
+Dockerfile
+.dockerignore
+databricks.yml
+requirements-databricks.txt
+cloudbuild.yaml
+app.yaml
+
+# Registry metadata (not used at runtime)
+server.json
+
+# Secrets / local env
+.env
+.env.example
+secrets/
+
+# Docs
+README.md
+SECURITY.md
