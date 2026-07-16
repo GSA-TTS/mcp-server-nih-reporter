@@ -479,7 +479,7 @@ python-dotenv==1.2.2
     #   mcp-data-check
     #   pydantic-settings
     #   reporter
-python-multipart==0.0.29
+python-multipart==0.0.31
     # via
     #   arize-phoenix
     #   fastmcp-slim
