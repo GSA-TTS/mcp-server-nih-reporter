@@ -51,7 +51,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     # via
     #   click
     #   typer
-cryptography==49.0.0
+cryptography==48.0.1
     # via
     #   authlib
     #   joserfc
