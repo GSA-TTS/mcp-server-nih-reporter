@@ -212,7 +212,7 @@ jmespath==1.1.0
     #   botocore
 joblib==1.5.3
     # via scikit-learn
-joserfc==1.6.7
+joserfc==1.6.8
     # via
     #   arize-phoenix
     #   authlib
