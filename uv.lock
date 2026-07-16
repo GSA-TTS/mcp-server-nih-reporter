@@ -3011,7 +3011,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "requests", specifier = ">=2.33.0" },
-    { name = "starlette", specifier = ">=0.47.2" },
+    { name = "starlette", specifier = ">=1.3.1" },
     { name = "uvicorn", specifier = ">=0.37.0" },
 ]
 
