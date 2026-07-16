@@ -9,4 +9,4 @@ applications:
       PYTHONUNBUFFERED: 1
     random-route: true
     disk_quota: 1G
-    memory: 512M
+    memory: 250M
