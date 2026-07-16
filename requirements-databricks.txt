@@ -276,7 +276,7 @@ markupsafe==3.0.3
     # via
     #   jinja2
     #   mako
-mcp==1.27.1
+mcp==1.28.1
     # via
     #   fastmcp-slim
     #   langchain-mcp-adapters
