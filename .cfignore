@@ -40,5 +40,7 @@ server.json
 secrets/
 
 # Docs
-README.md
+# NOTE: README.md is intentionally NOT ignored — pyproject.toml declares
+# `readme = "README.md"`, and the python buildpack's pip install (hatchling)
+# fails to build metadata without it.
 SECURITY.md
