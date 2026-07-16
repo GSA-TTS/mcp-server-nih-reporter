@@ -1,1 +1,1 @@
-web: PYTHONPATH=src uvicorn src.reporter.app:app --host 0.0.0.0 --port $PORT --workers 2
+web: python -m reporter.app
