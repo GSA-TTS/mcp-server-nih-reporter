@@ -262,7 +262,7 @@ langgraph-prebuilt==1.1.0
     # via langgraph
 langgraph-sdk==0.3.15
     # via langgraph
-langsmith==0.8.5
+langsmith==0.8.18
     # via langchain-core
 ldap3==2.9.1
     # via arize-phoenix
