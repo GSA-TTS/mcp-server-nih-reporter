@@ -1,1 +1,1 @@
-web: python -m reporter.app
+web: PYTHONPATH=src python -m reporter.app
