@@ -16,6 +16,4 @@ src/reporter.egg-info/
 secrets/
 .env
 
-# ignore scripts 
-scripts/
 .databricks
